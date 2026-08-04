@@ -1,0 +1,65 @@
+<div class="custom-dashboard-wrapper">
+  <!-- HEADER TITLE -->
+  <div class="custom-header-container">
+    <div>
+      <h1 class="custom-title">ALARM MONITORING DASHBOARD</h1>
+      <p class="custom-subtitle">Real-time Network Availability & Alarm Monitoring (Last 7 Days)</p>
+    </div>
+  </div>
+
+  <!-- FILTER PANEL PLACEHOLDER (Dynamic Injected via JS) -->
+  <div id="customFilterPanelPlaceholder"></div>
+
+  <!-- 1. KPI SUMMARY CARDS -->
+  <div class="custom-kpi-grid">
+    <div class="custom-kpi-card">
+      <div class="custom-kpi-icon-wrapper custom-kpi-icon-danger">
+        <span style="font-weight: bold;">ALL</span>
+      </div>
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">TOTAL ALARMS DOWN</span>
+        <span class="custom-kpi-value" id="statTotalAlarms">0</span>
+      </div>
+    </div>
+
+    <div class="custom-kpi-card">
+      <div class="custom-kpi-icon-wrapper custom-kpi-icon-warning">
+        <span style="font-weight: bold;">LOC</span>
+      </div>
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">SITES AFFECTED</span>
+        <span class="custom-kpi-value" id="statSitesAffected">0</span>
+      </div>
+    </div>
+
+    <div class="custom-kpi-card">
+      <div class="custom-kpi-icon-wrapper custom-kpi-icon-success">
+        <span style="font-weight: bold;">SLA</span>
+      </div>
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">AVG. AVAILABILITY</span>
+        <span class="custom-kpi-value" id="statAvgAvail" style="color: #10b981;">100.0%</span>
+      </div>
+    </div>
+
+    <div class="custom-kpi-card">
+      <div class="custom-kpi-icon-wrapper custom-kpi-icon-info">
+        <span style="font-weight: bold;">TOP</span>
+      </div>
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">MOST AFFECTED SITE</span>
+        <span class="custom-kpi-value" id="statMostAffected" style="font-size: 18px; word-break: break-all;">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ALARMS DOWN BY SITE TABLE PANEL -->
+  <div class="custom-panel-card">
+    <div class="custom-panel-body" id="alarmTableContainer">
+      <div style="color: #a1a1aa; padding: 24px; text-align: center;">Loading alarm data...</div>
+    </div>
+  </div>
+
+  <!-- 3. SITE DETAIL DRILLDOWN MODAL -->
+  <div id="customSiteDetailModal" class="custom-modal-overlay" style="display: none;"></div>
+</div>
