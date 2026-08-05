@@ -204,15 +204,11 @@ if (startDateStr === "" && endDateStr === "") {
 
     windowStartMs = parseDateTimeInput(startDateStr, false);
     windowEndMs = parseDateTimeInput(endDateStr, true);
-}
 } else if (startDateStr !== "") {
-    if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
-    var dStart = new Date(startDateStr + "T00:00:00");
-    var dEndSingle = new Date(startDateStr + "T23:59:59");
-    windowStartMs = isNaN(dStart.getTime()) ? (new Date(new Date().setHours(0, 0, 0, 0)).getTime()) : dStart.getTime();
-    windowEndMs = isNaN(dEndSingle.getTime()) ? nowMs : dEndSingle.getTime();
+    windowStartMs = parseDateTimeInput(startDateStr, false);
+    windowEndMs = parseDateTimeInput(startDateStr, true);
 } else {
-    // DEFAULT TODAY MODE: 00:00:00 Today to Now / 23:59:59 Today
+    // DEFAULT TODAY MODE: 00:00:00 Today to Now
     var todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     windowStartMs = todayStart.getTime();
