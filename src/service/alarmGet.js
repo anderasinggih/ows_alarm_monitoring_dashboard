@@ -185,10 +185,12 @@ var nowMs = nowObj.getTime();
 var windowStartMs;
 var windowEndMs = nowMs;
 
-// Default to ROLLING 24 HOURS if no startDate and endDate provided
+// Default to TODAY MODE (00:00:00 to Now) if no startDate and endDate provided
 if (startDateStr === "" && endDateStr === "") {
+    var todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    windowStartMs = todayStart.getTime();
     windowEndMs = nowMs;
-    windowStartMs = nowMs - (24 * 60 * 60 * 1000);
 } else if (startDateStr !== "" && endDateStr !== "") {
     function parseDateTimeInput(str, isEnd) {
         if (!str) return isEnd ? nowMs : new Date().setHours(0, 0, 0, 0);
@@ -215,8 +217,8 @@ if (startDateStr === "" && endDateStr === "") {
     windowEndMs = nowMs;
 }
 
-var totalWindowMs = nowMs - windowStartMs;
-if (totalWindowMs <= 0) totalWindowMs = 1000;
+var totalWindowMs = windowEndMs - windowStartMs;
+if (totalWindowMs <= 0) totalWindowMs = 24 * 60 * 60 * 1000;
 
 var startISO = formatISODate(new Date(windowStartMs));
 var endISO = formatISODate(new Date(windowEndMs));
