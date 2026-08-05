@@ -46,12 +46,12 @@ function getDefaultDates() {
     };
 }
 
-function getLast24HoursDates() {
-    var e = new Date();
-    var s = new Date(e.getTime() - (24 * 60 * 60 * 1000));
+function getTodayDates() {
+    var now = new Date();
+    var todayStr = formatYYYYMMDD(now);
     return {
-        startDate: formatYYYYMMDD(s),
-        endDate: formatYYYYMMDD(e)
+        startDate: todayStr,
+        endDate: todayStr
     };
 }
 
@@ -61,14 +61,14 @@ var initialDates = getDefaultDates();
 var DashboardState = {
     loading: false,
     viewMode: 'list', // 'list' or 'grid'
-    isLast24hMode: true, // DEFAULT ROLLING 24 HOURS MODE
+    isTodayMode: true, // DEFAULT TODAY MODE (00:00:00 - 23:59:59)
     isAllTimeMode: false,
     allSites: [],
     filteredSites: [],
     searchQuery: '',
     searchDebounceTimeout: null,
-    startDate: getLast24HoursDates().startDate,
-    endDate: getLast24HoursDates().endDate,
+    startDate: getTodayDates().startDate,
+    endDate: getTodayDates().endDate,
     pagination: {
         currentPage: 1,
         pageSize: 50 // DEFAULT ROWS PER PAGE IS 50
@@ -84,8 +84,8 @@ var DashboardState = {
 
 // Helper to calculate active date label
 function getActiveFilterLabel() {
-    if (DashboardState.isLast24hMode) {
-        return "Active: Last 24 Hours (Rolling)";
+    if (DashboardState.isTodayMode) {
+        return "Active: Today (00:00 – 23:59)";
     }
     if (DashboardState.isAllTimeMode) {
         return "Active: All Time (Live & History)";
@@ -122,9 +122,9 @@ function renderFilterPanel() {
             '      <input type="date" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-actions">' +
-            '      <button id="customQuick24hBtn" class="custom-btn-quick24" title="Quick Filter Rolling Last 24 Hours">Last 24h</button>' +
+            '      <button id="customQuickTodayBtn" class="custom-btn-quick24" title="Quick Filter Today (00:00 - 23:59)">Today</button>' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
-            '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (24h)</button>' +
+            '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (Today)</button>' +
             '    </div>' +
             '    <div class="custom-search-container">' +
             '      <input type="text" id="customSearchInput" class="custom-search-input" placeholder="Search site name..." />' +
@@ -151,7 +151,7 @@ function renderFilterPanel() {
                         return;
                     }
                     DashboardState.isAllTimeMode = false;
-                    DashboardState.isLast24hMode = false;
+                    DashboardState.isTodayMode = false;
                     DashboardState.startDate = sVal;
                     DashboardState.endDate = eVal;
                     DashboardState.pagination.currentPage = 1;
@@ -161,20 +161,20 @@ function renderFilterPanel() {
             });
         }
 
-        var quick24Btn = document.getElementById('customQuick24hBtn');
-        if (quick24Btn) {
-            quick24Btn.addEventListener('click', function () {
+        var quickTodayBtn = document.getElementById('customQuickTodayBtn');
+        if (quickTodayBtn) {
+            quickTodayBtn.addEventListener('click', function () {
                 DashboardState.isAllTimeMode = false;
-                DashboardState.isLast24hMode = true;
-                var q24 = getLast24HoursDates();
-                DashboardState.startDate = q24.startDate;
-                DashboardState.endDate = q24.endDate;
+                DashboardState.isTodayMode = true;
+                var qToday = getTodayDates();
+                DashboardState.startDate = qToday.startDate;
+                DashboardState.endDate = qToday.endDate;
                 DashboardState.pagination.currentPage = 1;
 
                 var sInput = document.getElementById('customStartDateInput');
                 var eInput = document.getElementById('customEndDateInput');
-                if (sInput) sInput.value = q24.startDate;
-                if (eInput) eInput.value = q24.endDate;
+                if (sInput) sInput.value = qToday.startDate;
+                if (eInput) eInput.value = qToday.endDate;
 
                 updateActiveBadge();
                 fetchDashboardData();
@@ -185,17 +185,17 @@ function renderFilterPanel() {
         if (resetBtn) {
             resetBtn.addEventListener('click', function () {
                 DashboardState.isAllTimeMode = false;
-                DashboardState.isLast24hMode = true;
-                var q24 = getLast24HoursDates();
-                DashboardState.startDate = q24.startDate;
-                DashboardState.endDate = q24.endDate;
+                DashboardState.isTodayMode = true;
+                var qToday = getTodayDates();
+                DashboardState.startDate = qToday.startDate;
+                DashboardState.endDate = qToday.endDate;
                 DashboardState.searchQuery = '';
                 DashboardState.pagination.currentPage = 1;
 
                 var sInput = document.getElementById('customStartDateInput');
                 var eInput = document.getElementById('customEndDateInput');
-                if (sInput) sInput.value = q24.startDate;
-                if (eInput) eInput.value = q24.endDate;
+                if (sInput) sInput.value = qToday.startDate;
+                if (eInput) eInput.value = qToday.endDate;
 
                 var searchInput = document.getElementById('customSearchInput');
                 if (searchInput) searchInput.value = '';
@@ -426,7 +426,7 @@ function renderTable() {
         html += '</div>';
     } else {
         // Calculate Header Period Label
-        var periodSuffix = DashboardState.isLast24hMode ? " (24h)" : (DashboardState.startDate && DashboardState.endDate ? "" : " (24h)");
+        var periodSuffix = DashboardState.isTodayMode ? " (Today)" : "";
 
         // RENDER LIST VIEW TABLE
         html += '' +

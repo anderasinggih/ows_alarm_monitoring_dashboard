@@ -199,28 +199,34 @@ if (startDateStr === "" && endDateStr === "") {
 
     var diffDays = Math.round((dEndTemp.getTime() - dStartTemp.getTime()) / (24 * 60 * 60 * 1000));
 
-    if (diffDays <= 1) {
-        // ROLLING 24 HOURS: Exact last 24 hours from current timestamp (now - 24h to now)
-        windowEndMs = nowMs;
-        windowStartMs = nowMs - (24 * 60 * 60 * 1000);
+    if (startDateStr === endDateStr) {
+        // TODAY / SINGLE DAY MODE: From 00:00:00 to 23:59:59 of that day
+        var dStartToday = new Date(startDateStr + "T00:00:00");
+        windowStartMs = dStartToday.getTime();
+        var dEndToday = new Date(endDateStr + "T23:59:59");
+        windowEndMs = dEndToday.getTime();
     } else {
         // Multi-day custom range
-        windowStartMs = isNaN(dStartTemp.getTime()) ? (nowMs - 24 * 60 * 60 * 1000) : dStartTemp.getTime();
+        windowStartMs = isNaN(dStartTemp.getTime()) ? (new Date(new Date().setHours(0, 0, 0, 0)).getTime()) : dStartTemp.getTime();
         var dEndFull = new Date(endDateStr + "T23:59:59");
         windowEndMs = isNaN(dEndFull.getTime()) ? nowMs : dEndFull.getTime();
     }
 } else if (startDateStr !== "") {
     if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
     var dStart = new Date(startDateStr + "T00:00:00");
-    windowStartMs = isNaN(dStart.getTime()) ? (nowMs - 24 * 60 * 60 * 1000) : dStart.getTime();
-    windowEndMs = windowStartMs + (24 * 60 * 60 * 1000);
+    var dEndSingle = new Date(startDateStr + "T23:59:59");
+    windowStartMs = isNaN(dStart.getTime()) ? (new Date(new Date().setHours(0, 0, 0, 0)).getTime()) : dStart.getTime();
+    windowEndMs = isNaN(dEndSingle.getTime()) ? nowMs : dEndSingle.getTime();
 } else {
+    // DEFAULT TODAY MODE: 00:00:00 Today to Now / 23:59:59 Today
+    var todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    windowStartMs = todayStart.getTime();
     windowEndMs = nowMs;
-    windowStartMs = nowMs - (24 * 60 * 60 * 1000);
 }
 
-var totalWindowMs = windowEndMs - windowStartMs;
-if (totalWindowMs <= 0) totalWindowMs = 24 * 60 * 60 * 1000;
+var totalWindowMs = nowMs - windowStartMs;
+if (totalWindowMs <= 0) totalWindowMs = 1000;
 
 var startISO = formatISODate(new Date(windowStartMs));
 var endISO = formatISODate(new Date(windowEndMs));
