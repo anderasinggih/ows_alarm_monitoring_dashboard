@@ -482,3 +482,32 @@
   font-size: 12px;
   color: #71717a;
 }
+
+/* Pagination Buttons Styling */
+.custom-pag-btn {
+  background-color: #27272a !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #3f3f46 !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.custom-pag-btn:hover:not(:disabled) {
+  background-color: #3f3f46 !important;
+  border-color: #52525b !important;
+  color: #ffffff !important;
+}
+
+.custom-pag-btn:disabled {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+  color: #52525b !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}

@@ -476,11 +476,11 @@ function renderTable() {
     });
     html += '    </select>';
 
-    var prevDisabledStr = pag.currentPage === 1 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : 'style="cursor:pointer;"';
-    var nextDisabledStr = pag.currentPage === totalPages ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : 'style="cursor:pointer;"';
+    var prevDisabledStr = pag.currentPage === 1 ? 'disabled' : '';
+    var nextDisabledStr = pag.currentPage === totalPages ? 'disabled' : '';
 
-    html += '    <button id="customPrevPageBtn" ' + prevDisabledStr + ' style="background: #09090b; color: #f4f4f5; border: 1px solid #27272a; padding: 4px 10px; border-radius: 6px; font-weight: 600;">&lt; Prev</button>';
-    html += '    <button id="customNextPageBtn" ' + nextDisabledStr + ' style="background: #09090b; color: #f4f4f5; border: 1px solid #27272a; padding: 4px 10px; border-radius: 6px; font-weight: 600;">Next &gt;</button>';
+    html += '    <button id="customPrevPageBtn" class="custom-pag-btn" ' + prevDisabledStr + '>&lt; Prev</button>';
+    html += '    <button id="customNextPageBtn" class="custom-pag-btn" ' + nextDisabledStr + '>Next &gt;</button>';
     html += '  </div>';
     html += '</div>';
 
