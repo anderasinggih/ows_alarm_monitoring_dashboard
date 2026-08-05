@@ -61,6 +61,7 @@ var initialDates = getDefaultDates();
 var DashboardState = {
     loading: false,
     viewMode: 'list', // 'list' or 'grid'
+    isLast24hMode: true, // DEFAULT ROLLING 24 HOURS MODE
     allSites: [],
     filteredSites: [],
     searchQuery: '',
@@ -82,14 +83,14 @@ var DashboardState = {
 
 // Helper to calculate active date label
 function getActiveFilterLabel() {
+    if (DashboardState.isLast24hMode) {
+        return "Active: Last 24 Hours (Rolling)";
+    }
     var s = DashboardState.startDate;
     var e = DashboardState.endDate;
     var def = getDefaultDates();
-    var q24 = getLast24HoursDates();
 
-    if (s === q24.startDate && e === q24.endDate) {
-        return "Active: Last 24 Hours";
-    } else if (s === def.startDate && e === def.endDate) {
+    if (s === def.startDate && e === def.endDate) {
         return "Active: Last 7 Days";
     } else if (s && e) {
         return "Active: " + s + " – " + e;
@@ -117,7 +118,7 @@ function renderFilterPanel() {
             '      <input type="date" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-actions">' +
-            '      <button id="customQuick24hBtn" class="custom-btn-quick24" title="Quick Filter Last 24 Hours">24h</button>' +
+            '      <button id="customQuick24hBtn" class="custom-btn-quick24" title="Quick Filter Rolling Last 24 Hours">Last 24h</button>' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
             '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (7D)</button>' +
             '    </div>' +
@@ -145,6 +146,7 @@ function renderFilterPanel() {
                         alert('Start Date cannot be greater than End Date!');
                         return;
                     }
+                    DashboardState.isLast24hMode = false;
                     DashboardState.startDate = sVal;
                     DashboardState.endDate = eVal;
                     DashboardState.pagination.currentPage = 1;
@@ -157,6 +159,7 @@ function renderFilterPanel() {
         var quick24Btn = document.getElementById('customQuick24hBtn');
         if (quick24Btn) {
             quick24Btn.addEventListener('click', function () {
+                DashboardState.isLast24hMode = true;
                 var q24 = getLast24HoursDates();
                 DashboardState.startDate = q24.startDate;
                 DashboardState.endDate = q24.endDate;
@@ -175,6 +178,7 @@ function renderFilterPanel() {
         var resetBtn = document.getElementById('customResetDateBtn');
         if (resetBtn) {
             resetBtn.addEventListener('click', function () {
+                DashboardState.isLast24hMode = false;
                 var def = getDefaultDates();
                 DashboardState.startDate = def.startDate;
                 DashboardState.endDate = def.endDate;
@@ -247,6 +251,20 @@ function renderFilterPanel() {
 
 // Fetch Data from OWS Service
 function fetchDashboardData() {
+    // If Last 24h mode is active, recalculate rolling date timestamps on every refresh
+    if (DashboardState.isLast24hMode) {
+        var q24 = getLast24HoursDates();
+        DashboardState.startDate = q24.startDate;
+        DashboardState.endDate = q24.endDate;
+
+        var sInput = document.getElementById('customStartDateInput');
+        var eInput = document.getElementById('customEndDateInput');
+        if (sInput) sInput.value = q24.startDate;
+        if (eInput) eInput.value = q24.endDate;
+
+        var b = document.getElementById('customActiveFilterBadge');
+        if (b) b.innerText = getActiveFilterLabel();
+    }
     var tableContainer = document.getElementById('alarmTableContainer');
     if (tableContainer) {
         tableContainer.innerHTML = '<div style="color: #a1a1aa; padding: 24px; text-align: center;">Loading data from OWS...</div>';

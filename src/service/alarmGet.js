@@ -173,20 +173,26 @@ var nowMs = nowObj.getTime();
 var windowStartMs;
 var windowEndMs;
 
-// If both startDate and endDate provided (e.g. Start: 03/08/2026, End: 04/08/2026)
+// If both startDate and endDate provided
 if (startDateStr !== "" && endDateStr !== "") {
     if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
     if (endDateStr.length > 10) endDateStr = endDateStr.substring(0, 10);
 
-    var dStart = new Date(startDateStr + "T00:00:00");
-    var dEnd = new Date(endDateStr + "T00:00:00");
+    // Check if user selected 24h range or single day
+    var dStartTemp = new Date(startDateStr + "T00:00:00");
+    var dEndTemp = new Date(endDateStr + "T00:00:00");
 
-    windowStartMs = isNaN(dStart.getTime()) ? (nowMs - 24 * 60 * 60 * 1000) : dStart.getTime();
-    windowEndMs = isNaN(dEnd.getTime()) ? nowMs : dEnd.getTime();
+    var diffDays = Math.round((dEndTemp.getTime() - dStartTemp.getTime()) / (24 * 60 * 60 * 1000));
 
-    // If Start Date equals End Date (single day selected), make window 24h
-    if (windowEndMs <= windowStartMs) {
-        windowEndMs = windowStartMs + (24 * 60 * 60 * 1000);
+    if (diffDays <= 1) {
+        // ROLLING 24 HOURS: Exact last 24 hours from current timestamp (now - 24h to now)
+        windowEndMs = nowMs;
+        windowStartMs = nowMs - (24 * 60 * 60 * 1000);
+    } else {
+        // Multi-day custom range
+        windowStartMs = isNaN(dStartTemp.getTime()) ? (nowMs - 24 * 60 * 60 * 1000) : dStartTemp.getTime();
+        var dEndFull = new Date(endDateStr + "T23:59:59");
+        windowEndMs = isNaN(dEndFull.getTime()) ? nowMs : dEndFull.getTime();
     }
 } else if (startDateStr !== "") {
     if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
@@ -194,7 +200,7 @@ if (startDateStr !== "" && endDateStr !== "") {
     windowStartMs = isNaN(dStart.getTime()) ? (nowMs - 24 * 60 * 60 * 1000) : dStart.getTime();
     windowEndMs = windowStartMs + (24 * 60 * 60 * 1000);
 } else {
-    // Default: Last 24 Hours
+    // Default: ROLLING 24 HOURS (now - 24h to now)
     windowEndMs = nowMs;
     windowStartMs = nowMs - (24 * 60 * 60 * 1000);
 }
@@ -208,8 +214,7 @@ var endISO = formatISODate(new Date(windowEndMs));
 // 2. QUERY LIVE & HISTORY ALARMS (Optimized with Dual Format ISO & Epoch Ms to Support Any OWS Column Type)
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" " +
     "WHERE (sitedownfault = '1' OR sitedownfault = 1) " +
-    "AND (domain = '1001' OR domain = 1001) " +
-    "AND (firstinserttime >= " + windowStartMs + " OR firstinserttime >= '" + startISO + "')";
+    "AND (domain = '1001' OR domain = 1001)";
 
 var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
     "WHERE (sitedownfault = '1' OR sitedownfault = 1) " +
@@ -231,36 +236,36 @@ var totalLiveAlarms = 0;
 // Collect Raw Intervals & Alarm Details per Site
 for (var l = 0; l < liveRows.length; l++) {
     var alarmL = liveRows[l];
+    var siteNameL = getSiteNameFromRecord(alarmL);
+    if (!siteNameL) continue;
+
+    totalLiveAlarms++;
+
     var startL = toNumber(alarmL.firstinserttime) || windowStartMs;
+    // Cap startL to windowStartMs for availability calculation if occurred before window
+    var effStartL = startL < windowStartMs ? windowStartMs : startL;
+    var endL = windowEndMs;
+    var alarmNameL = extractOWSField(alarmL.alarmname || alarmL.alarm_name || alarmL.rawalarmname || 'Site Down Alarm');
 
-    if (startL >= windowStartMs && startL <= windowEndMs) {
-        totalLiveAlarms++;
-        var siteNameL = getSiteNameFromRecord(alarmL);
-        if (!siteNameL) continue;
-
-        var endL = windowEndMs;
-        var alarmNameL = extractOWSField(alarmL.alarmname || alarmL.alarm_name || alarmL.rawalarmname || 'Site Down Alarm');
-
-        if (!siteIntervalMap[siteNameL]) {
-            siteIntervalMap[siteNameL] = {
-                siteName: siteNameL,
-                totalAlarms: 0,
-                intervals: [],
-                alarms: []
-            };
-        }
-
-        siteIntervalMap[siteNameL].totalAlarms += 1;
-        siteIntervalMap[siteNameL].intervals.push({ start: startL, end: endL });
-        siteIntervalMap[siteNameL].alarms.push({
-            alarmName: alarmNameL,
-            occurMs: startL,
-            clearMs: endL,
-            occurStr: formatTimeOnly(startL),
-            clearStr: 'Active (Now)',
-            durationFormatted: formatDuration(endL - startL)
-        });
+    if (!siteIntervalMap[siteNameL]) {
+        siteIntervalMap[siteNameL] = {
+            siteName: siteNameL,
+            totalAlarms: 0,
+            intervals: [],
+            alarms: []
+        };
     }
+
+    siteIntervalMap[siteNameL].totalAlarms += 1;
+    siteIntervalMap[siteNameL].intervals.push({ start: effStartL, end: endL });
+    siteIntervalMap[siteNameL].alarms.push({
+        alarmName: alarmNameL,
+        occurMs: startL,
+        clearMs: endL,
+        occurStr: formatTimeOnly(startL),
+        clearStr: 'Active (Now)',
+        durationFormatted: formatDuration(endL - effStartL)
+    });
 }
 
 for (var h = 0; h < historyRows.length; h++) {
@@ -382,12 +387,6 @@ sitesList.sort(function (a, b) {
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
 
-// Calculate total alarms (Live + History)
-var totalAllAlarmsCount = 0;
-for (var s = 0; s < sitesList.length; s++) {
-    totalAllAlarmsCount += (sitesList[s].totalAlarms || 0);
-}
-
 var avgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
 
 return {
@@ -399,7 +398,7 @@ return {
             endDate: endISO.substring(0, 10)
         },
         summary: {
-            totalAlarmsDown: totalAllAlarmsCount,
+            totalAlarmsDown: totalLiveAlarms,
             sitesAffected: affectedSitesCount,
             avgAvailabilityPct: avgAvailabilityPct,
             mostAffectedSite: mostAffectedSiteName,
