@@ -327,11 +327,20 @@ function renderKPIStats() {
     var statSites = document.getElementById('statSitesAffected');
     var statAvail = document.getElementById('statAvgAvail');
     var statMost = document.getElementById('statMostAffected');
+    var statMostDt = document.getElementById('statMostAffectedDowntime');
 
     if (statTotal) statTotal.innerText = DashboardState.summary.totalAlarmsDown || 0;
     if (statSites) statSites.innerText = DashboardState.summary.sitesAffected || 0;
     if (statAvail) statAvail.innerText = (DashboardState.summary.avgAvailabilityPct || "100.0") + "%";
     if (statMost) statMost.innerText = DashboardState.summary.mostAffectedSite || "-";
+    if (statMostDt) {
+        var dtVal = DashboardState.summary.mostAffectedSiteDowntime;
+        if (dtVal && dtVal !== "0m" && dtVal !== "0s" && DashboardState.summary.mostAffectedSite !== "-") {
+            statMostDt.innerText = dtVal + " down";
+        } else {
+            statMostDt.innerText = "-";
+        }
+    }
 }
 
 // Client-Side Search Filter
