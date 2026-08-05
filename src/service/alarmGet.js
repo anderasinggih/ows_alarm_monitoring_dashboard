@@ -173,10 +173,10 @@ var nowMs = nowObj.getTime();
 var windowStartMs;
 var windowEndMs = nowMs;
 
-// ALL TIME MODE (If no startDate and endDate provided)
+// Default to ROLLING 24 HOURS if no startDate and endDate provided
 if (startDateStr === "" && endDateStr === "") {
-    windowStartMs = 0; // 0 timestamp = Beginning of time
     windowEndMs = nowMs;
+    windowStartMs = nowMs - (24 * 60 * 60 * 1000);
 } else if (startDateStr !== "" && endDateStr !== "") {
     if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
     if (endDateStr.length > 10) endDateStr = endDateStr.substring(0, 10);
@@ -334,9 +334,6 @@ for (var k = 0; k < siteKeys.length; k++) {
             if (mergedDuration > 0) {
                 totalDowntimeMergedMs += mergedDuration;
             }
-            if (mergedPeriod.start > latestOccurMs) {
-                latestOccurMs = mergedPeriod.start;
-            }
         }
 
         if (totalDowntimeMergedMs > totalWindowMs) {
@@ -355,20 +352,24 @@ for (var k = 0; k < siteKeys.length; k++) {
             mostAffectedSiteDowntime = formatDuration(totalDowntimeMergedMs);
         }
 
+        // Urutkan daftar alarm individual per site berdasarkan Occur Time terbaru
+        item.alarms.sort(function (a, b) {
+            return (b.occurMs || 0) - (a.occurMs || 0);
+        });
+
+        if (item.alarms.length > 0 && item.alarms[0].occurMs > 0) {
+            latestOccurMs = item.alarms[0].occurMs;
+        }
+
         var lastOccStr = "-";
         if (latestOccurMs > 0) {
             var d = new Date(latestOccurMs);
             var hh = String(d.getHours());
             if (hh.length < 2) hh = "0" + hh;
-            var mm = String(d.getMinutes());
-            if (mm.length < 2) mm = "0" + mm;
-            lastOccStr = hh + ":" + mm;
+            var miStr = String(d.getMinutes());
+            if (miStr.length < 2) miStr = "0" + miStr;
+            lastOccStr = hh + ":" + miStr;
         }
-
-        // Urutkan daftar alarm individual per site berdasarkan Occur Time terbaru
-        item.alarms.sort(function (a, b) {
-            return b.occurMs - a.occurMs;
-        });
 
         sitesList.push({
             siteName: item.siteName,
