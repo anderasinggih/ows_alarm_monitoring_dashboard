@@ -744,7 +744,10 @@ function startLiveTicker() {
                     }
 
                     // Also update Most Affected Site Card subtitle if this site is currently the top affected
-                    if (DashboardState.summary && DashboardState.summary.mostAffectedSite === site.siteName) {
+                    var topSiteName = (DashboardState.summary && DashboardState.summary.mostAffectedSite || '').toLowerCase().trim();
+                    var currentSiteName = (site.siteName || '').toLowerCase().trim();
+
+                    if (topSiteName && topSiteName !== '-' && topSiteName === currentSiteName) {
                         DashboardState.summary.mostAffectedSiteDowntime = dtStr;
                         var statMostDt = document.getElementById('statMostAffectedDowntime');
                         if (statMostDt) {
