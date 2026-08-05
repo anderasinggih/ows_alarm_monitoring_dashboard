@@ -678,11 +678,12 @@ function startLiveTicker() {
                     site.downtimeMs = (site.downtimeMs || 0) + 1000;
 
                     // CAP TO 24 HOURS IN ROLLING 24H MODE
-                    if (DashboardState.isLast24hMode && site.downtimeMs > (24 * 60 * 60 * 1000)) {
-                        site.downtimeMs = 24 * 60 * 60 * 1000;
+                    var windowCapMs = DashboardState.isLast24hMode ? (24 * 60 * 60 * 1000) : (24 * 60 * 60 * 1000);
+                    if (site.downtimeMs > windowCapMs) {
+                        site.downtimeMs = windowCapMs;
                     }
 
-                    // Calculate updated formatted duration strings
+                    // Calculate updated Downtime string
                     var dtSeconds = Math.floor(site.downtimeMs / 1000);
                     var dtH = Math.floor(dtSeconds / 3600);
                     var dtM = Math.floor((dtSeconds % 3600) / 60);
@@ -695,10 +696,43 @@ function startLiveTicker() {
 
                     site.downtimeFormatted = dtStr;
 
-                    // Update DOM element for Downtime cell (4th column)
+                    // Calculate updated Available time (Window - Downtime)
+                    var availMs = windowCapMs - site.downtimeMs;
+                    if (availMs < 0) availMs = 0;
+
+                    var avSeconds = Math.floor(availMs / 1000);
+                    var avH = Math.floor(avSeconds / 3600);
+                    var avM = Math.floor((avSeconds % 3600) / 60);
+                    var avS = avSeconds % 60;
+
+                    var avStr = "";
+                    if (avH > 0) avStr = avH + "h " + avM + "m " + avS + "s";
+                    else if (avM > 0) avStr = avM + "m " + avS + "s";
+                    else avStr = avS + "s";
+
+                    site.availableFormatted = avStr;
+
+                    // Calculate updated Availability Rate %
+                    var pct = ((availMs / windowCapMs) * 100).toFixed(1);
+                    site.availRatePct = pct;
+
+                    // Update DOM elements live for Downtime, Available, Avail Rate %, and Progress Bar
                     var cells = row.querySelectorAll('td');
-                    if (cells && cells.length >= 5) {
+                    if (cells && cells.length >= 6) {
+                        // Downtime (Column 4)
                         cells[3].innerText = dtStr;
+
+                        // Available (Column 5)
+                        cells[4].innerText = avStr;
+
+                        // Avail Rate % (Column 6)
+                        cells[5].innerText = pct + "%";
+
+                        // Progress Bar Width
+                        var barInner = row.querySelector('.custom-avail-bar-inner');
+                        if (barInner) {
+                            barInner.style.width = pct + "%";
+                        }
                     }
                 }
             }
