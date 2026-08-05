@@ -285,7 +285,11 @@ for (var l = 0; l < liveRows.length; l++) {
 for (var h = 0; h < historyRows.length; h++) {
     var alarmH = historyRows[h];
     var startH = toNumber(alarmH.firstinserttime) || windowStartMs;
-    var endH = toNumber(alarmH.cleartime) || windowEndMs;
+    var rawClearH = toNumber(alarmH.cleartime);
+
+    // If cleartime is 0, null, or empty, alarm is NOT cleared yet (Active)
+    var isHistoryCleared = rawClearH > 0;
+    var endH = isHistoryCleared ? rawClearH : windowEndMs;
 
     if (endH >= windowStartMs && startH <= windowEndMs) {
         var siteNameH = getSiteNameFromRecord(alarmH);
@@ -312,7 +316,7 @@ for (var h = 0; h < historyRows.length; h++) {
                 occurMs: effStart,
                 clearMs: effEnd,
                 occurStr: formatTimeOnly(effStart),
-                clearStr: formatTimeOnly(effEnd),
+                clearStr: isHistoryCleared ? formatTimeOnly(effEnd) : 'Active (Now)',
                 durationFormatted: formatDuration(effEnd - effStart)
             });
         }
