@@ -677,6 +677,11 @@ function startLiveTicker() {
                 if (hasActiveAlarm) {
                     site.downtimeMs = (site.downtimeMs || 0) + 1000;
 
+                    // CAP TO 24 HOURS IN ROLLING 24H MODE
+                    if (DashboardState.isLast24hMode && site.downtimeMs > (24 * 60 * 60 * 1000)) {
+                        site.downtimeMs = 24 * 60 * 60 * 1000;
+                    }
+
                     // Calculate updated formatted duration strings
                     var dtSeconds = Math.floor(site.downtimeMs / 1000);
                     var dtH = Math.floor(dtSeconds / 3600);
