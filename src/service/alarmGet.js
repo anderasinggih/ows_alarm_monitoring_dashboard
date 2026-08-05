@@ -260,6 +260,20 @@ function getVendorLabelFromRecord(record) {
     return rawVendor; // Return raw value if not found in lookup map
 }
 
+function getRegionFromRecord(record) {
+    if (!record) return '-';
+    var prov = extractOWSField(record.province || record.prov || '');
+    var city = extractOWSField(record.city || record.cityname || record.township || '');
+    if (prov && city) {
+        return prov + " / " + city;
+    } else if (prov) {
+        return prov;
+    } else if (city) {
+        return city;
+    }
+    return '-';
+}
+
 function getSiteNameFromRecord(record) {
     if (!record) return '';
     return extractOWSField(record.sitename);
@@ -275,6 +289,7 @@ for (var l = 0; l < liveRows.length; l++) {
     if (!siteNameL) continue;
 
     var vendorLabelL = getVendorLabelFromRecord(alarmL);
+    var regionLabelL = getRegionFromRecord(alarmL);
 
     totalLiveAlarms++;
 
@@ -287,13 +302,19 @@ for (var l = 0; l < liveRows.length; l++) {
     if (!siteIntervalMap[siteNameL]) {
         siteIntervalMap[siteNameL] = {
             siteName: siteNameL,
+            regionLabel: regionLabelL,
             vendorLabel: vendorLabelL,
             totalAlarms: 0,
             intervals: [],
             alarms: []
         };
-    } else if (vendorLabelL && vendorLabelL !== '-' && siteIntervalMap[siteNameL].vendorLabel === '-') {
-        siteIntervalMap[siteNameL].vendorLabel = vendorLabelL;
+    } else {
+        if (regionLabelL && regionLabelL !== '-' && siteIntervalMap[siteNameL].regionLabel === '-') {
+            siteIntervalMap[siteNameL].regionLabel = regionLabelL;
+        }
+        if (vendorLabelL && vendorLabelL !== '-' && siteIntervalMap[siteNameL].vendorLabel === '-') {
+            siteIntervalMap[siteNameL].vendorLabel = vendorLabelL;
+        }
     }
 
     siteIntervalMap[siteNameL].totalAlarms += 1;
@@ -322,6 +343,7 @@ for (var h = 0; h < historyRows.length; h++) {
         if (!siteNameH) continue;
 
         var vendorLabelH = getVendorLabelFromRecord(alarmH);
+        var regionLabelH = getRegionFromRecord(alarmH);
 
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
@@ -331,13 +353,19 @@ for (var h = 0; h < historyRows.length; h++) {
             if (!siteIntervalMap[siteNameH]) {
                 siteIntervalMap[siteNameH] = {
                     siteName: siteNameH,
+                    regionLabel: regionLabelH,
                     vendorLabel: vendorLabelH,
                     totalAlarms: 0,
                     intervals: [],
                     alarms: []
                 };
-            } else if (vendorLabelH && vendorLabelH !== '-' && siteIntervalMap[siteNameH].vendorLabel === '-') {
-                siteIntervalMap[siteNameH].vendorLabel = vendorLabelH;
+            } else {
+                if (regionLabelH && regionLabelH !== '-' && siteIntervalMap[siteNameH].regionLabel === '-') {
+                    siteIntervalMap[siteNameH].regionLabel = regionLabelH;
+                }
+                if (vendorLabelH && vendorLabelH !== '-' && siteIntervalMap[siteNameH].vendorLabel === '-') {
+                    siteIntervalMap[siteNameH].vendorLabel = vendorLabelH;
+                }
             }
 
             siteIntervalMap[siteNameH].totalAlarms += 1;
@@ -415,6 +443,7 @@ for (var k = 0; k < siteKeys.length; k++) {
 
         sitesList.push({
             siteName: item.siteName,
+            regionLabel: item.regionLabel || '-',
             vendorLabel: item.vendorLabel || '-',
             totalAlarms: item.totalAlarms,
             downtimeMs: totalDowntimeMergedMs,

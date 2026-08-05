@@ -406,13 +406,14 @@ function renderTable() {
             var gPct = gSite.availRatePct || "100.0";
             var gGlobalIndex = startIdx + g;
             var gVendor = gSite.vendorLabel || '-';
+            var gRegion = gSite.regionLabel || '-';
 
             html += '' +
                 '<div class="custom-site-grid-card custom-table-row" data-site-index="' + gGlobalIndex + '">' +
                 '  <div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
                 '    <div>' +
                 '      <div style="font-size: 16px; font-weight: 700; color: #f4f4f5;">' + gSite.siteName + '</div>' +
-                '      <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
+                '      <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #a1a1aa;">' + gRegion + '</span> • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
                 '    </div>' +
                 '    <div style="font-size: 16px; font-weight: 700; color: #ffffff; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
                 '  </div>' +
@@ -437,6 +438,7 @@ function renderTable() {
             '    <tr>' +
             '      <th style="width: 50px; text-align: center;">NO</th>' +
             '      <th>SITE NAME</th>' +
+            '      <th>REGION</th>' +
             '      <th>VENDOR</th>' +
             '      <th>UPTIME</th>' +
             '      <th>DOWNTIME' + periodSuffix + '</th>' +
@@ -453,6 +455,7 @@ function renderTable() {
             var rowNo = startIdx + i + 1;
             var globalIndex = startIdx + i;
             var vLabel = site.vendorLabel || '-';
+            var rLabel = site.regionLabel || '-';
 
             html += '' +
                 '<tr class="custom-table-row" data-site-index="' + globalIndex + '" style="cursor: pointer;">' +
@@ -461,6 +464,7 @@ function renderTable() {
                 '    <div style="font-weight: 600; color: #f4f4f5;">' + site.siteName + '</div>' +
                 '    <div style="font-size: 11px; color: #a1a1aa;">' + (site.totalAlarms || 0) + ' alarms</div>' +
                 '  </td>' +
+                '  <td style="color: #e4e4e7; font-weight: 500; font-size: 12px;">' + rLabel + '</td>' +
                 '  <td><span style="background: #1e293b; color: #60a5fa; border: 1px solid #3b82f6; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + vLabel + '</span></td>' +
                 '  <td style="min-width: 160px;">' +
                 '    <div class="custom-avail-bar-wrapper">' +
