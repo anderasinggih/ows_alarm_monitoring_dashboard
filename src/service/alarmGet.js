@@ -128,12 +128,13 @@ function formatISODate(dateObj) {
 
 function formatTimeOnly(ms) {
     if (!ms) return "-";
-    var d = new Date(ms);
-    var hh = String(d.getHours());
+    // Force WIB (UTC+7) offset conversion
+    var d = new Date(Number(ms) + (7 * 60 * 60 * 1000));
+    var hh = String(d.getUTCHours());
     if (hh.length < 2) hh = "0" + hh;
-    var mi = String(d.getMinutes());
+    var mi = String(d.getUTCMinutes());
     if (mi.length < 2) mi = "0" + mi;
-    var ss = String(d.getSeconds());
+    var ss = String(d.getUTCSeconds());
     if (ss.length < 2) ss = "0" + ss;
     return hh + ":" + mi + ":" + ss;
 }
