@@ -299,7 +299,15 @@ function fetchDashboardData() {
 
                 if (resultData && resultData.summary) {
                     DashboardState.summary = resultData.summary;
-                    DashboardState.allSites = resultData.sites || [];
+                    var fetchedSites = resultData.sites || [];
+                    var nowFetchTime = new Date().getTime();
+
+                    for (var f = 0; f < fetchedSites.length; f++) {
+                        fetchedSites[f].baseDowntimeMs = fetchedSites[f].downtimeMs || 0;
+                        fetchedSites[f].initialFetchedAt = nowFetchTime;
+                    }
+
+                    DashboardState.allSites = fetchedSites;
                     DashboardState.filteredSites = DashboardState.allSites;
 
                     renderKPIStats();
@@ -687,25 +695,35 @@ function startLiveTicker() {
             if (!st) continue;
 
             var hasActiveAlarm = false;
+            var earliestActiveOccurMs = 0;
+
             if (st.alarms && st.alarms.length > 0) {
                 for (var a = 0; a < st.alarms.length; a++) {
                     if (st.alarms[a].clearStr === 'Active (Now)') {
                         hasActiveAlarm = true;
-                        break;
+                        var occ = st.alarms[a].occurMs || 0;
+                        if (earliestActiveOccurMs === 0 || (occ > 0 && occ < earliestActiveOccurMs)) {
+                            earliestActiveOccurMs = occ;
+                        }
                     }
                 }
             }
 
+            // Real-time dynamic downtime calculation based on actual clock time (nowMs)
+            var currentDowntimeMs = st.downtimeMs || 0;
             if (hasActiveAlarm) {
-                st.downtimeMs = (st.downtimeMs || 0) + 1000;
-                if (st.downtimeMs > windowCapMs) {
-                    st.downtimeMs = windowCapMs;
-                }
+                // If baseline downtime was provided, add the live delta elapsed since last fetch
+                if (!st.initialFetchedAt) st.initialFetchedAt = now.getTime();
+                var liveElapsedMs = now.getTime() - st.initialFetchedAt;
+                currentDowntimeMs = (st.baseDowntimeMs !== undefined ? st.baseDowntimeMs : (st.downtimeMs || 0)) + liveElapsedMs;
+            }
+
+            if (currentDowntimeMs > windowCapMs) {
+                currentDowntimeMs = windowCapMs;
             }
 
             // Calculate updated Downtime string
-            var dtMs = st.downtimeMs || 0;
-            var dtSeconds = Math.floor(dtMs / 1000);
+            var dtSeconds = Math.floor(currentDowntimeMs / 1000);
             var dtH = Math.floor(dtSeconds / 3600);
             var dtM = Math.floor((dtSeconds % 3600) / 60);
             var dtS = dtSeconds % 60;
@@ -718,8 +736,7 @@ function startLiveTicker() {
             st.downtimeFormatted = dtStr;
 
             // Calculate updated Available time (Window - Downtime)
-            // Available time is FIXED based on initial window or ticks if site is active
-            var availMs = windowCapMs - dtMs;
+            var availMs = windowCapMs - currentDowntimeMs;
             if (availMs < 0) availMs = 0;
 
             var avSeconds = Math.floor(availMs / 1000);
