@@ -701,44 +701,46 @@ function startLiveTicker() {
                 if (st.downtimeMs > windowCapMs) {
                     st.downtimeMs = windowCapMs;
                 }
+            }
 
-                // Calculate updated Downtime string
-                var dtSeconds = Math.floor(st.downtimeMs / 1000);
-                var dtH = Math.floor(dtSeconds / 3600);
-                var dtM = Math.floor((dtSeconds % 3600) / 60);
-                var dtS = dtSeconds % 60;
+            // Calculate updated Downtime string
+            var dtMs = st.downtimeMs || 0;
+            var dtSeconds = Math.floor(dtMs / 1000);
+            var dtH = Math.floor(dtSeconds / 3600);
+            var dtM = Math.floor((dtSeconds % 3600) / 60);
+            var dtS = dtSeconds % 60;
 
-                var dtStr = "";
-                if (dtH > 0) dtStr = dtH + "h " + dtM + "m " + dtS + "s";
-                else if (dtM > 0) dtStr = dtM + "m " + dtS + "s";
-                else dtStr = dtS + "s";
+            var dtStr = "";
+            if (dtH > 0) dtStr = dtH + "h " + dtM + "m " + dtS + "s";
+            else if (dtM > 0) dtStr = dtM + "m " + dtS + "s";
+            else dtStr = dtS + "s";
 
-                st.downtimeFormatted = dtStr;
+            st.downtimeFormatted = dtStr;
 
-                // Calculate updated Available time (Window - Downtime)
-                var availMs = windowCapMs - st.downtimeMs;
-                if (availMs < 0) availMs = 0;
+            // Calculate updated Available time (Window - Downtime)
+            // Available time is FIXED based on initial window or ticks if site is active
+            var availMs = windowCapMs - dtMs;
+            if (availMs < 0) availMs = 0;
 
-                var avSeconds = Math.floor(availMs / 1000);
-                var avH = Math.floor(avSeconds / 3600);
-                var avM = Math.floor((avSeconds % 3600) / 60);
-                var avS = avSeconds % 60;
+            var avSeconds = Math.floor(availMs / 1000);
+            var avH = Math.floor(avSeconds / 3600);
+            var avM = Math.floor((avSeconds % 3600) / 60);
+            var avS = avSeconds % 60;
 
-                var avStr = "";
-                if (avH > 0) avStr = avH + "h " + avM + "m " + avS + "s";
-                else if (avM > 0) avStr = avM + "m " + avS + "s";
-                else avStr = avS + "s";
+            var avStr = "";
+            if (avH > 0) avStr = avH + "h " + avM + "m " + avS + "s";
+            else if (avM > 0) avStr = avM + "m " + avS + "s";
+            else avStr = avS + "s";
 
-                st.availableFormatted = avStr;
-                st.availRatePct = ((availMs / windowCapMs) * 100).toFixed(1);
+            st.availableFormatted = avStr;
+            st.availRatePct = ((availMs / windowCapMs) * 100).toFixed(1);
 
-                // Update Most Affected Site Card subtitle immediately
-                if (DashboardState.summary && DashboardState.summary.mostAffectedSite === st.siteName) {
-                    DashboardState.summary.mostAffectedSiteDowntime = dtStr;
-                    var statMostDt = document.getElementById('statMostAffectedDowntime');
-                    if (statMostDt) {
-                        statMostDt.innerText = dtStr + " down";
-                    }
+            // Update Most Affected Site Card subtitle immediately
+            if (hasActiveAlarm && DashboardState.summary && DashboardState.summary.mostAffectedSite === st.siteName) {
+                DashboardState.summary.mostAffectedSiteDowntime = dtStr;
+                var statMostDt = document.getElementById('statMostAffectedDowntime');
+                if (statMostDt) {
+                    statMostDt.innerText = dtStr + " down";
                 }
             }
         }
