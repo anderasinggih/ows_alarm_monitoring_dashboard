@@ -440,7 +440,7 @@ function renderTable() {
             '      <th>SITE NAME</th>' +
             '      <th>REGION</th>' +
             '      <th>VENDOR</th>' +
-            '      <th>AVAILABLE</th>' +
+            '      <th>UPTIME</th>' +
             '      <th>DOWNTIME' + periodSuffix + '</th>' +
             '      <th>AVAILABLE' + periodSuffix + '</th>' +
             '      <th>AVAIL RATE %</th>' +
@@ -735,16 +735,18 @@ function startLiveTicker() {
                     site.availRatePct = pct;
 
                     // Update DOM elements live for Downtime, Available, Avail Rate %, and Progress Bar
+                    // Columns in <tr>:
+                    // 0: NO, 1: SITE NAME, 2: REGION, 3: VENDOR, 4: UPTIME BAR, 5: DOWNTIME, 6: AVAILABLE, 7: AVAIL RATE %, 8: LAST OCCURRENCE
                     var cells = row.querySelectorAll('td');
-                    if (cells && cells.length >= 6) {
-                        // Downtime (Column 4)
-                        cells[3].innerText = dtStr;
+                    if (cells && cells.length >= 8) {
+                        // Downtime (Column 5)
+                        cells[5].innerText = dtStr;
 
-                        // Available (Column 5)
-                        cells[4].innerText = avStr;
+                        // Available (Column 6)
+                        cells[6].innerText = avStr;
 
-                        // Avail Rate % (Column 6)
-                        cells[5].innerText = pct + "%";
+                        // Avail Rate % (Column 7)
+                        cells[7].innerText = pct + "%";
 
                         // Progress Bar Width
                         var barInner = row.querySelector('.custom-avail-bar-inner');
