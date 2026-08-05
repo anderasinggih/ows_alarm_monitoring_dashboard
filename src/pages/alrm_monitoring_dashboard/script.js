@@ -61,13 +61,14 @@ var initialDates = getDefaultDates();
 var DashboardState = {
     loading: false,
     viewMode: 'list', // 'list' or 'grid'
-    isLast24hMode: true, // DEFAULT ROLLING 24 HOURS MODE
+    isLast24hMode: false,
+    isAllTimeMode: true, // DEFAULT ALL TIME MODE
     allSites: [],
     filteredSites: [],
     searchQuery: '',
     searchDebounceTimeout: null,
-    startDate: initialDates.startDate,
-    endDate: initialDates.endDate,
+    startDate: '',
+    endDate: '',
     pagination: {
         currentPage: 1,
         pageSize: 50 // DEFAULT ROWS PER PAGE IS 50
@@ -83,6 +84,9 @@ var DashboardState = {
 
 // Helper to calculate active date label
 function getActiveFilterLabel() {
+    if (DashboardState.isAllTimeMode) {
+        return "Active: All Time (Live & History)";
+    }
     if (DashboardState.isLast24hMode) {
         return "Active: Last 24 Hours (Rolling)";
     }
@@ -120,7 +124,7 @@ function renderFilterPanel() {
             '    <div class="custom-filter-actions">' +
             '      <button id="customQuick24hBtn" class="custom-btn-quick24" title="Quick Filter Rolling Last 24 Hours">Last 24h</button>' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
-            '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (7D)</button>' +
+            '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (All Time)</button>' +
             '    </div>' +
             '    <div class="custom-search-container">' +
             '      <input type="text" id="customSearchInput" class="custom-search-input" placeholder="Search site name..." />' +
@@ -146,6 +150,7 @@ function renderFilterPanel() {
                         alert('Start Date cannot be greater than End Date!');
                         return;
                     }
+                    DashboardState.isAllTimeMode = false;
                     DashboardState.isLast24hMode = false;
                     DashboardState.startDate = sVal;
                     DashboardState.endDate = eVal;
@@ -159,6 +164,7 @@ function renderFilterPanel() {
         var quick24Btn = document.getElementById('customQuick24hBtn');
         if (quick24Btn) {
             quick24Btn.addEventListener('click', function () {
+                DashboardState.isAllTimeMode = false;
                 DashboardState.isLast24hMode = true;
                 var q24 = getLast24HoursDates();
                 DashboardState.startDate = q24.startDate;
@@ -178,17 +184,17 @@ function renderFilterPanel() {
         var resetBtn = document.getElementById('customResetDateBtn');
         if (resetBtn) {
             resetBtn.addEventListener('click', function () {
+                DashboardState.isAllTimeMode = true;
                 DashboardState.isLast24hMode = false;
-                var def = getDefaultDates();
-                DashboardState.startDate = def.startDate;
-                DashboardState.endDate = def.endDate;
+                DashboardState.startDate = '';
+                DashboardState.endDate = '';
                 DashboardState.searchQuery = '';
                 DashboardState.pagination.currentPage = 1;
 
                 var sInput = document.getElementById('customStartDateInput');
                 var eInput = document.getElementById('customEndDateInput');
-                if (sInput) sInput.value = def.startDate;
-                if (eInput) eInput.value = def.endDate;
+                if (sInput) sInput.value = '';
+                if (eInput) eInput.value = '';
 
                 var searchInput = document.getElementById('customSearchInput');
                 if (searchInput) searchInput.value = '';

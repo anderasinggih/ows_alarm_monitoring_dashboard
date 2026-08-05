@@ -171,10 +171,13 @@ var endDateStr = extractOWSField(reqParams.endDate);
 var nowObj = new Date();
 var nowMs = nowObj.getTime();
 var windowStartMs;
-var windowEndMs;
+var windowEndMs = nowMs;
 
-// If both startDate and endDate provided
-if (startDateStr !== "" && endDateStr !== "") {
+// ALL TIME MODE (If no startDate and endDate provided)
+if (startDateStr === "" && endDateStr === "") {
+    windowStartMs = 0; // 0 timestamp = Beginning of time
+    windowEndMs = nowMs;
+} else if (startDateStr !== "" && endDateStr !== "") {
     if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
     if (endDateStr.length > 10) endDateStr = endDateStr.substring(0, 10);
 
@@ -200,7 +203,6 @@ if (startDateStr !== "" && endDateStr !== "") {
     windowStartMs = isNaN(dStart.getTime()) ? (nowMs - 24 * 60 * 60 * 1000) : dStart.getTime();
     windowEndMs = windowStartMs + (24 * 60 * 60 * 1000);
 } else {
-    // Default: ROLLING 24 HOURS (now - 24h to now)
     windowEndMs = nowMs;
     windowStartMs = nowMs - (24 * 60 * 60 * 1000);
 }
