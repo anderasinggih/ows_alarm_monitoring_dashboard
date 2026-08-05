@@ -96,15 +96,19 @@ function queryByTql(tql, parameters) {
 }
 
 function formatDuration(ms) {
-    if (!ms || ms <= 0) return "0m";
-    var totalMinutes = Math.floor(ms / (1000 * 60));
-    var hours = Math.floor(totalMinutes / 60);
-    var minutes = totalMinutes % 60;
+    if (!ms || ms <= 0) return "0s";
+    var totalSeconds = Math.floor(ms / 1000);
+    var hours = Math.floor(totalSeconds / 3600);
+    var minutes = Math.floor((totalSeconds % 3600) / 60);
+    var seconds = totalSeconds % 60;
 
     if (hours > 0) {
-        return hours + "h " + minutes + "m";
+        return hours + "h " + minutes + "m " + seconds + "s";
     }
-    return minutes + "m";
+    if (minutes > 0) {
+        return minutes + "m " + seconds + "s";
+    }
+    return seconds + "s";
 }
 
 function formatISODate(dateObj) {
@@ -129,7 +133,9 @@ function formatTimeOnly(ms) {
     if (hh.length < 2) hh = "0" + hh;
     var mi = String(d.getMinutes());
     if (mi.length < 2) mi = "0" + mi;
-    return hh + ":" + mi;
+    var ss = String(d.getSeconds());
+    if (ss.length < 2) ss = "0" + ss;
+    return hh + ":" + mi + ":" + ss;
 }
 
 function mergeOverlappingIntervals(intervals) {
@@ -363,12 +369,7 @@ for (var k = 0; k < siteKeys.length; k++) {
 
         var lastOccStr = "-";
         if (latestOccurMs > 0) {
-            var d = new Date(latestOccurMs);
-            var hh = String(d.getHours());
-            if (hh.length < 2) hh = "0" + hh;
-            var miStr = String(d.getMinutes());
-            if (miStr.length < 2) miStr = "0" + miStr;
-            lastOccStr = hh + ":" + miStr;
+            lastOccStr = formatTimeOnly(latestOccurMs);
         }
 
         sitesList.push({
