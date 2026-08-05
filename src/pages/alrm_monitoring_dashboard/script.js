@@ -416,6 +416,9 @@ function renderTable() {
         }
         html += '</div>';
     } else {
+        // Calculate Header Period Label
+        var periodSuffix = DashboardState.isLast24hMode ? " (24h)" : (DashboardState.startDate && DashboardState.endDate ? "" : " (24h)");
+
         // RENDER LIST VIEW TABLE
         html += '' +
             '<table class="custom-table">' +
@@ -424,8 +427,8 @@ function renderTable() {
             '      <th style="width: 50px; text-align: center;">NO</th>' +
             '      <th>SITE NAME</th>' +
             '      <th>UPTIME</th>' +
-            '      <th>DOWNTIME</th>' +
-            '      <th>AVAILABLE</th>' +
+            '      <th>DOWNTIME' + periodSuffix + '</th>' +
+            '      <th>AVAILABLE' + periodSuffix + '</th>' +
             '      <th>AVAIL RATE %</th>' +
             '      <th>LAST OCCURRENCE</th>' +
             '    </tr>' +
