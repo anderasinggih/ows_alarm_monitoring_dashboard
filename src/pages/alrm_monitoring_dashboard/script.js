@@ -664,13 +664,22 @@ function startLiveTicker() {
     liveTickerInterval = setInterval(function () {
         if (!DashboardState.allSites || DashboardState.allSites.length === 0) return;
 
-        // Calculate Window Duration for Today Mode
+        // Calculate Window Duration for Today / Custom Mode
         var now = new Date();
-        var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        var todayElapsedMs = now.getTime() - todayStart.getTime();
-        if (todayElapsedMs <= 0) todayElapsedMs = 1000;
+        var windowCapMs = (24 * 60 * 60 * 1000);
 
-        var windowCapMs = DashboardState.isTodayMode ? todayElapsedMs : (24 * 60 * 60 * 1000);
+        if (DashboardState.isTodayMode) {
+            var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            windowCapMs = now.getTime() - todayStart.getTime();
+            if (windowCapMs <= 0) windowCapMs = 1000;
+        } else if (DashboardState.startDate && DashboardState.endDate) {
+            var dS = new Date(DashboardState.startDate.indexOf('T') !== -1 ? DashboardState.startDate : DashboardState.startDate + 'T00:00:00');
+            var dE = new Date(DashboardState.endDate.indexOf('T') !== -1 ? DashboardState.endDate : DashboardState.endDate + 'T23:59:59');
+            if (!isNaN(dS.getTime()) && !isNaN(dE.getTime())) {
+                windowCapMs = dE.getTime() - dS.getTime();
+                if (windowCapMs <= 0) windowCapMs = 1000;
+            }
+        }
 
         // 1. Ticker for All Sites Data Model
         for (var s = 0; s < DashboardState.allSites.length; s++) {
@@ -706,7 +715,7 @@ function startLiveTicker() {
 
                 st.downtimeFormatted = dtStr;
 
-                // Calculate updated Available time
+                // Calculate updated Available time (Window - Downtime)
                 var availMs = windowCapMs - st.downtimeMs;
                 if (availMs < 0) availMs = 0;
 
