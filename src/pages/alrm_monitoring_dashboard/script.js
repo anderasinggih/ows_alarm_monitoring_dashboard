@@ -440,7 +440,7 @@ function renderTable() {
             '      <th>SITE NAME</th>' +
             '      <th>REGION</th>' +
             '      <th>VENDOR</th>' +
-            '      <th>UPTIME</th>' +
+            '      <th>AVAILABLE</th>' +
             '      <th>DOWNTIME' + periodSuffix + '</th>' +
             '      <th>AVAILABLE' + periodSuffix + '</th>' +
             '      <th>AVAIL RATE %</th>' +
@@ -473,7 +473,7 @@ function renderTable() {
                 '  </td>' +
                 '  <td style="color: #ef4444; font-weight: 600;">' + (site.downtimeFormatted || '0m') + '</td>' +
                 '  <td style="color: #10b981; font-weight: 600;">' + (site.availableFormatted || '0m') + '</td>' +
-                '  <td style="font-weight: 600;">' + pct + '%</td>' +
+                '  <td style="font-weight: 600; color: #f4f4f5;">' + pct + '%</td>' +
                 '  <td style="color: #a1a1aa;">' + (site.lastOccurrenceStr || '-') + '</td>' +
                 '</tr>';
         }
