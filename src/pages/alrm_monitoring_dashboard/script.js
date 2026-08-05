@@ -754,6 +754,15 @@ function startLiveTicker() {
                             barInner.style.width = pct + "%";
                         }
                     }
+
+                    // Also update Most Affected Site Card subtitle if this site is currently the top affected
+                    if (DashboardState.summary && DashboardState.summary.mostAffectedSite === site.siteName) {
+                        DashboardState.summary.mostAffectedSiteDowntime = dtStr;
+                        var statMostDt = document.getElementById('statMostAffectedDowntime');
+                        if (statMostDt) {
+                            statMostDt.innerText = dtStr + " down";
+                        }
+                    }
                 }
             }
         }
