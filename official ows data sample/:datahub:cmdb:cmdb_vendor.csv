@@ -1,0 +1,19 @@
+﻿ phone, contact, label, value_id, mail, vendor_code, vendor_name, is_actual, description, id, keycode, actual_model_id, active, change_time
+ , , OREX SAI,	 1006, , , OREX-SAI, , , 230160dc-fb30-11f0-be90-0255ac120057, OREX-SAI, , true,	 1769484461278
+ , , CICT mobile,	 1008, , , CICT-mobile, , , 2303d0ec-fb30-11f0-be90-0255ac120057, CICT-mobile, , true,	 1769484461294
+ , , TBG,	 1010, , , Tower-Bersama, , , 23061ae4-fb30-11f0-be90-0255ac120057, Tower-Bersama, , true,	 1771483096735
+ , , Comnet, 11, , , Comnet, , , 445b5b37-07ec-11f1-8d5d-0255ac120223, Comnet, , true,	 1770884676571
+ , , Yinet,	 1005, , , Yinet, , , 4b9622eb-08b1-11f1-b148-0255ac1210a3, Yinet, , true,	 1770969299556
+ , , ALU, 6, , ALU, ALU, , , ac789f7a-3509-11f1-bc01-0255ac1218eb, ALU, , true,	 1775845108976
+ , , ERICSSON, 2, , ERICSSON, ERICSSON, , , ac7a7444-3509-11f1-bc01-0255ac1218eb, ERICSSON, , true,	 1775845108988
+ , , JUNIPER, 4, , JUNIPER, JUNIPER, , , ac7d3378-3509-11f1-bc01-0255ac1218eb, JUNIPER, , true,	 1775845109006
+ , , NEC, 8, , NEC, NEC, , , ac7e9312-3509-11f1-bc01-0255ac1218eb, NEC, , true,	 1775845109015
+ , , NSN, 5, , NSN, NSN, , , ac8040ca-3509-11f1-bc01-0255ac1218eb, NSN, , true,	 1775845109026
+ , , Nokia,	 1002, , , Nokia, , , b489f5a1-fb2f-11f0-be90-0255ac120057, Nokia, , true,	 1769484275946
+ , , FiberHome,	 1003, , , FiberHome, , , b48c3ea5-fb2f-11f0-be90-0255ac120057, FiberHome, , true,	 1769484275961
+ , , Baicells,	 1007, , , Baicells, , , b493b903-fb2f-11f0-be90-0255ac120057, Baicells, , true,	 1769484276010
+ , , Persada,	 1012, , , Persada, , , b49b0c53-fb2f-11f0-be90-0255ac120057, Persada, , true,	 1769484276058
+ , , HUAWEI, 1, , , HUAWEI, , , e7024ef5-e165-11f0-a9fb-0255ac121097, HUAWEI, , true,	 1770717104135
+ , , Huawei,	 1001, , , Huawei, , , e703fcc2-e165-11f0-a9fb-0255ac121097, Huawei, , false,	 1773719211625
+ , , ZTE, 7, , ZTE, ZTE, , , e70a8cd9-e165-11f0-a9fb-0255ac121097, ZTE, , true,	 1766648823266
+ , , Zabbix, 26, , , Zabbix, , , f473ebfc-1ea9-11f1-8d29-0255ac1218e4, Zabbix, , true,	 1773385072474

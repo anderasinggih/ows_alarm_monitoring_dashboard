@@ -221,7 +221,7 @@ if (totalWindowMs <= 0) totalWindowMs = 1000;
 var startISO = formatISODate(new Date(windowStartMs));
 var endISO = formatISODate(new Date(windowEndMs));
 
-// 2. QUERY LIVE & HISTORY ALARMS (Optimized with Dual Format ISO & Epoch Ms to Support Any OWS Column Type)
+// 2. QUERY LIVE & HISTORY ALARMS + CMDB VENDOR (Dynamic Join Lookup)
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" " +
     "WHERE (sitedownfault = '1' OR sitedownfault = 1) " +
     "AND (domain = '1001' OR domain = 1001)";
@@ -232,8 +232,33 @@ var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history
     "AND ((cleartime >= " + windowStartMs + " AND firstinserttime <= " + windowEndMs + ") " +
     "OR (cleartime >= '" + startISO + "' AND firstinserttime <= '" + endISO + "'))";
 
+var vendorTql = "SELECT * FROM \"/datahub/cmdb/cmdb_vendor\"";
+
 var liveRows = queryByTql(liveTql);
 var historyRows = queryByTql(historyTql);
+var vendorRows = queryByTql(vendorTql);
+
+// Build Dynamic Vendor Map (value_id -> label / vendor_name / keycode)
+var vendorMap = {};
+for (var v = 0; v < vendorRows.length; v++) {
+    var vRow = vendorRows[v];
+    var vId = extractOWSField(vRow.value_id || vRow.id || vRow.vendor_code);
+    var vLabel = extractOWSField(vRow.label || vRow.vendor_name || vRow.keycode || vRow.description);
+    if (vId && vLabel) {
+        vendorMap[vId] = vLabel;
+    }
+}
+
+function getVendorLabelFromRecord(record) {
+    if (!record) return '-';
+    var rawVendor = extractOWSField(record.vendor || record.vendor_id || record.vendorid || record.vendorcode);
+    if (!rawVendor) return '-';
+    // Match against dynamic vendorMap
+    if (vendorMap[rawVendor]) {
+        return vendorMap[rawVendor];
+    }
+    return rawVendor; // Return raw value if not found in lookup map
+}
 
 function getSiteNameFromRecord(record) {
     if (!record) return '';
@@ -249,6 +274,8 @@ for (var l = 0; l < liveRows.length; l++) {
     var siteNameL = getSiteNameFromRecord(alarmL);
     if (!siteNameL) continue;
 
+    var vendorLabelL = getVendorLabelFromRecord(alarmL);
+
     totalLiveAlarms++;
 
     var startL = toNumber(alarmL.firstinserttime) || windowStartMs;
@@ -260,10 +287,13 @@ for (var l = 0; l < liveRows.length; l++) {
     if (!siteIntervalMap[siteNameL]) {
         siteIntervalMap[siteNameL] = {
             siteName: siteNameL,
+            vendorLabel: vendorLabelL,
             totalAlarms: 0,
             intervals: [],
             alarms: []
         };
+    } else if (vendorLabelL && vendorLabelL !== '-' && siteIntervalMap[siteNameL].vendorLabel === '-') {
+        siteIntervalMap[siteNameL].vendorLabel = vendorLabelL;
     }
 
     siteIntervalMap[siteNameL].totalAlarms += 1;
@@ -291,6 +321,8 @@ for (var h = 0; h < historyRows.length; h++) {
         var siteNameH = getSiteNameFromRecord(alarmH);
         if (!siteNameH) continue;
 
+        var vendorLabelH = getVendorLabelFromRecord(alarmH);
+
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
         var alarmNameH = extractOWSField(alarmH.alarmname || alarmH.alarm_name || alarmH.rawalarmname || 'Site Down Alarm');
@@ -299,10 +331,13 @@ for (var h = 0; h < historyRows.length; h++) {
             if (!siteIntervalMap[siteNameH]) {
                 siteIntervalMap[siteNameH] = {
                     siteName: siteNameH,
+                    vendorLabel: vendorLabelH,
                     totalAlarms: 0,
                     intervals: [],
                     alarms: []
                 };
+            } else if (vendorLabelH && vendorLabelH !== '-' && siteIntervalMap[siteNameH].vendorLabel === '-') {
+                siteIntervalMap[siteNameH].vendorLabel = vendorLabelH;
             }
 
             siteIntervalMap[siteNameH].totalAlarms += 1;
@@ -380,6 +415,7 @@ for (var k = 0; k < siteKeys.length; k++) {
 
         sitesList.push({
             siteName: item.siteName,
+            vendorLabel: item.vendorLabel || '-',
             totalAlarms: item.totalAlarms,
             downtimeMs: totalDowntimeMergedMs,
             lastOccurrenceMs: latestOccurMs,
