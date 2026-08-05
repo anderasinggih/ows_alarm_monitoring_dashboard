@@ -643,12 +643,71 @@ function openSiteDetailModal(siteData) {
     });
 }
 
+// 1-SECOND LIVE TICKER FOR DOWNTIME & AVAILABLE COUNTERS
+var liveTickerInterval = null;
+
+function startLiveTicker() {
+    if (liveTickerInterval) clearInterval(liveTickerInterval);
+
+    liveTickerInterval = setInterval(function () {
+        if (!DashboardState.allSites || DashboardState.allSites.length === 0) return;
+
+        var rows = document.querySelectorAll('.custom-table-row');
+        if (!rows || rows.length === 0) return;
+
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var gIdxStr = row.getAttribute('data-site-index');
+            if (gIdxStr === null || gIdxStr === undefined) continue;
+            var gIdx = parseInt(gIdxStr, 10);
+            var site = DashboardState.filteredSites[gIdx];
+
+            if (site) {
+                // If site has live active alarm, increment downtimeMs by 1s (1000ms)
+                var hasActiveAlarm = false;
+                if (site.alarms && site.alarms.length > 0) {
+                    for (var a = 0; a < site.alarms.length; a++) {
+                        if (site.alarms[a].clearStr === 'Active (Now)') {
+                            hasActiveAlarm = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasActiveAlarm) {
+                    site.downtimeMs = (site.downtimeMs || 0) + 1000;
+
+                    // Calculate updated formatted duration strings
+                    var dtSeconds = Math.floor(site.downtimeMs / 1000);
+                    var dtH = Math.floor(dtSeconds / 3600);
+                    var dtM = Math.floor((dtSeconds % 3600) / 60);
+                    var dtS = dtSeconds % 60;
+
+                    var dtStr = "";
+                    if (dtH > 0) dtStr = dtH + "h " + dtM + "m " + dtS + "s";
+                    else if (dtM > 0) dtStr = dtM + "m " + dtS + "s";
+                    else dtStr = dtS + "s";
+
+                    site.downtimeFormatted = dtStr;
+
+                    // Update DOM element for Downtime cell (4th column)
+                    var cells = row.querySelectorAll('td');
+                    if (cells && cells.length >= 5) {
+                        cells[3].innerText = dtStr;
+                    }
+                }
+            }
+        }
+    }, 1000);
+}
+
 // ROBUST LIFECYCLE INITIALIZER FOR OWS RUN & PREVIEWER MODE
 (function initDashboardLifecycle() {
     function tryInit() {
         var rendered = renderFilterPanel();
         if (rendered) {
             fetchDashboardData();
+            startLiveTicker();
         }
     }
 
@@ -657,6 +716,13 @@ function openSiteDetailModal(siteData) {
     } else {
         tryInit();
     }
+
+    // Auto-refresh data from OWS server every 30 seconds
+    setInterval(function () {
+        if (!DashboardState.loading) {
+            fetchDashboardData();
+        }
+    }, 30000);
 
     // Fallback retries for OWS iframe delay in RUN Mode
     setTimeout(tryInit, 50);
