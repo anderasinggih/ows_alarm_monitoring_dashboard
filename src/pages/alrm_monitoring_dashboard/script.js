@@ -440,7 +440,6 @@ function renderTable() {
             '      <th>SITE NAME</th>' +
             '      <th>REGION</th>' +
             '      <th>VENDOR</th>' +
-            '      <th>UPTIME</th>' +
             '      <th>DOWNTIME' + periodSuffix + '</th>' +
             '      <th>AVAILABLE' + periodSuffix + '</th>' +
             '      <th>AVAIL RATE %</th>' +
@@ -466,11 +465,6 @@ function renderTable() {
                 '  </td>' +
                 '  <td style="color: #e4e4e7; font-weight: 500; font-size: 12px;">' + rLabel + '</td>' +
                 '  <td><span style="background: #1e293b; color: #60a5fa; border: 1px solid #3b82f6; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + vLabel + '</span></td>' +
-                '  <td style="min-width: 160px;">' +
-                '    <div class="custom-avail-bar-wrapper">' +
-                '      <div class="custom-avail-bar-inner" style="width: ' + pct + '%;"></div>' +
-                '    </div>' +
-                '  </td>' +
                 '  <td style="color: #ef4444; font-weight: 600;">' + (site.downtimeFormatted || '0m') + '</td>' +
                 '  <td style="color: #10b981; font-weight: 600;">' + (site.availableFormatted || '0m') + '</td>' +
                 '  <td style="font-weight: 600; color: #f4f4f5;">' + pct + '%</td>' +
@@ -734,25 +728,19 @@ function startLiveTicker() {
                     var pct = ((availMs / windowCapMs) * 100).toFixed(1);
                     site.availRatePct = pct;
 
-                    // Update DOM elements live for Downtime, Available, Avail Rate %, and Progress Bar
+                    // Update DOM elements live for Downtime, Available, and Avail Rate %
                     // Columns in <tr>:
-                    // 0: NO, 1: SITE NAME, 2: REGION, 3: VENDOR, 4: UPTIME BAR, 5: DOWNTIME, 6: AVAILABLE, 7: AVAIL RATE %, 8: LAST OCCURRENCE
+                    // 0: NO, 1: SITE NAME, 2: REGION, 3: VENDOR, 4: DOWNTIME, 5: AVAILABLE, 6: AVAIL RATE %, 7: LAST OCCURRENCE
                     var cells = row.querySelectorAll('td');
-                    if (cells && cells.length >= 8) {
-                        // Downtime (Column 5)
-                        cells[5].innerText = dtStr;
+                    if (cells && cells.length >= 7) {
+                        // Downtime (Column 4)
+                        cells[4].innerText = dtStr;
 
-                        // Available (Column 6)
-                        cells[6].innerText = avStr;
+                        // Available (Column 5)
+                        cells[5].innerText = avStr;
 
-                        // Avail Rate % (Column 7)
-                        cells[7].innerText = pct + "%";
-
-                        // Progress Bar Width
-                        var barInner = row.querySelector('.custom-avail-bar-inner');
-                        if (barInner) {
-                            barInner.style.width = pct + "%";
-                        }
+                        // Avail Rate % (Column 6)
+                        cells[6].innerText = pct + "%";
                     }
 
                     // Also update Most Affected Site Card subtitle if this site is currently the top affected
