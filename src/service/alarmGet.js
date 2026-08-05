@@ -170,15 +170,15 @@ function mergeOverlappingIntervals(intervals) {
 }
 
 function parseDateTimeInput(str, isEnd, fallbackNowMs) {
-    if (!str) return isEnd ? fallbackNowMs : new Date().setHours(0, 0, 0, 0);
-    var s = String(str).trim();
+    if (!str) return isEnd ? fallbackNowMs : (new Date()).setHours(0, 0, 0, 0);
+    var s = String(str);
     if (s.indexOf("T") !== -1) {
         var dt = new Date(s);
-        return isNaN(dt.getTime()) ? (isEnd ? fallbackNowMs : new Date().setHours(0, 0, 0, 0)) : dt.getTime();
+        return isNaN(dt.getTime()) ? (isEnd ? fallbackNowMs : (new Date()).setHours(0, 0, 0, 0)) : dt.getTime();
     }
     if (s.length > 10) s = s.substring(0, 10);
     var d = new Date(s + (isEnd ? "T23:59:59" : "T00:00:00"));
-    return isNaN(d.getTime()) ? (isEnd ? fallbackNowMs : new Date().setHours(0, 0, 0, 0)) : d.getTime();
+    return isNaN(d.getTime()) ? (isEnd ? fallbackNowMs : (new Date()).setHours(0, 0, 0, 0)) : d.getTime();
 }
 
 // 1. READ INPUT PARAMETERS
