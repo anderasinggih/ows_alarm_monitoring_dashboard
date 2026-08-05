@@ -169,18 +169,6 @@ function mergeOverlappingIntervals(intervals) {
     return merged;
 }
 
-function parseDateTimeInput(str, isEnd, fallbackNowMs) {
-    if (!str) return isEnd ? fallbackNowMs : (new Date()).setHours(0, 0, 0, 0);
-    var s = String(str);
-    if (s.indexOf("T") !== -1) {
-        var dt = new Date(s);
-        return isNaN(dt.getTime()) ? (isEnd ? fallbackNowMs : (new Date()).setHours(0, 0, 0, 0)) : dt.getTime();
-    }
-    if (s.length > 10) s = s.substring(0, 10);
-    var d = new Date(s + (isEnd ? "T23:59:59" : "T00:00:00"));
-    return isNaN(d.getTime()) ? (isEnd ? fallbackNowMs : (new Date()).setHours(0, 0, 0, 0)) : d.getTime();
-}
-
 // 1. READ INPUT PARAMETERS
 var inputObj = typeof input !== 'undefined' ? input : (typeof _message !== 'undefined' ? _message : {});
 if (inputObj._values && Array.isArray(inputObj._values) && inputObj._values.length > 0) {
@@ -204,11 +192,23 @@ if (startDateStr === "" && endDateStr === "") {
     windowStartMs = todayStart.getTime();
     windowEndMs = nowMs;
 } else if (startDateStr !== "" && endDateStr !== "") {
-    windowStartMs = parseDateTimeInput(startDateStr, false, nowMs);
-    windowEndMs = parseDateTimeInput(endDateStr, true, nowMs);
+    function parseDateTimeInput(str, isEnd) {
+        if (!str) return isEnd ? nowMs : new Date().setHours(0, 0, 0, 0);
+        var s = str.trim();
+        if (s.indexOf("T") !== -1) {
+            var dt = new Date(s);
+            return isNaN(dt.getTime()) ? (isEnd ? nowMs : new Date().setHours(0, 0, 0, 0)) : dt.getTime();
+        }
+        if (s.length > 10) s = s.substring(0, 10);
+        var d = new Date(s + (isEnd ? "T23:59:59" : "T00:00:00"));
+        return isNaN(d.getTime()) ? (isEnd ? nowMs : new Date().setHours(0, 0, 0, 0)) : d.getTime();
+    }
+
+    windowStartMs = parseDateTimeInput(startDateStr, false);
+    windowEndMs = parseDateTimeInput(endDateStr, true);
 } else if (startDateStr !== "") {
-    windowStartMs = parseDateTimeInput(startDateStr, false, nowMs);
-    windowEndMs = parseDateTimeInput(startDateStr, true, nowMs);
+    windowStartMs = parseDateTimeInput(startDateStr, false);
+    windowEndMs = parseDateTimeInput(startDateStr, true);
 } else {
     // DEFAULT TODAY MODE: 00:00:00 Today to Now
     var todayStart = new Date();

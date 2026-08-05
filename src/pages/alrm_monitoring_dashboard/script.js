@@ -664,6 +664,77 @@ function startLiveTicker() {
     liveTickerInterval = setInterval(function () {
         if (!DashboardState.allSites || DashboardState.allSites.length === 0) return;
 
+        // Calculate Window Duration for Today Mode
+        var now = new Date();
+        var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        var todayElapsedMs = now.getTime() - todayStart.getTime();
+        if (todayElapsedMs <= 0) todayElapsedMs = 1000;
+
+        var windowCapMs = DashboardState.isTodayMode ? todayElapsedMs : (24 * 60 * 60 * 1000);
+
+        // 1. Ticker for All Sites Data Model
+        for (var s = 0; s < DashboardState.allSites.length; s++) {
+            var st = DashboardState.allSites[s];
+            if (!st) continue;
+
+            var hasActiveAlarm = false;
+            if (st.alarms && st.alarms.length > 0) {
+                for (var a = 0; a < st.alarms.length; a++) {
+                    if (st.alarms[a].clearStr === 'Active (Now)') {
+                        hasActiveAlarm = true;
+                        break;
+                    }
+                }
+            }
+
+            if (hasActiveAlarm) {
+                st.downtimeMs = (st.downtimeMs || 0) + 1000;
+                if (st.downtimeMs > windowCapMs) {
+                    st.downtimeMs = windowCapMs;
+                }
+
+                // Calculate updated Downtime string
+                var dtSeconds = Math.floor(st.downtimeMs / 1000);
+                var dtH = Math.floor(dtSeconds / 3600);
+                var dtM = Math.floor((dtSeconds % 3600) / 60);
+                var dtS = dtSeconds % 60;
+
+                var dtStr = "";
+                if (dtH > 0) dtStr = dtH + "h " + dtM + "m " + dtS + "s";
+                else if (dtM > 0) dtStr = dtM + "m " + dtS + "s";
+                else dtStr = dtS + "s";
+
+                st.downtimeFormatted = dtStr;
+
+                // Calculate updated Available time
+                var availMs = windowCapMs - st.downtimeMs;
+                if (availMs < 0) availMs = 0;
+
+                var avSeconds = Math.floor(availMs / 1000);
+                var avH = Math.floor(avSeconds / 3600);
+                var avM = Math.floor((avSeconds % 3600) / 60);
+                var avS = avSeconds % 60;
+
+                var avStr = "";
+                if (avH > 0) avStr = avH + "h " + avM + "m " + avS + "s";
+                else if (avM > 0) avStr = avM + "m " + avS + "s";
+                else avStr = avS + "s";
+
+                st.availableFormatted = avStr;
+                st.availRatePct = ((availMs / windowCapMs) * 100).toFixed(1);
+
+                // Update Most Affected Site Card subtitle immediately
+                if (DashboardState.summary && DashboardState.summary.mostAffectedSite === st.siteName) {
+                    DashboardState.summary.mostAffectedSiteDowntime = dtStr;
+                    var statMostDt = document.getElementById('statMostAffectedDowntime');
+                    if (statMostDt) {
+                        statMostDt.innerText = dtStr + " down";
+                    }
+                }
+            }
+        }
+
+        // 2. Update Visible DOM Table Rows
         var rows = document.querySelectorAll('.custom-table-row');
         if (!rows || rows.length === 0) return;
 
@@ -672,88 +743,14 @@ function startLiveTicker() {
             var gIdxStr = row.getAttribute('data-site-index');
             if (gIdxStr === null || gIdxStr === undefined) continue;
             var gIdx = parseInt(gIdxStr, 10);
-            var site = DashboardState.filteredSites[gIdx];
+            var visibleSite = DashboardState.filteredSites[gIdx];
 
-            if (site) {
-                // If site has live active alarm, increment downtimeMs by 1s (1000ms)
-                var hasActiveAlarm = false;
-                if (site.alarms && site.alarms.length > 0) {
-                    for (var a = 0; a < site.alarms.length; a++) {
-                        if (site.alarms[a].clearStr === 'Active (Now)') {
-                            hasActiveAlarm = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (hasActiveAlarm) {
-                    site.downtimeMs = (site.downtimeMs || 0) + 1000;
-
-                    // CAP TO 24 HOURS IN ROLLING 24H MODE
-                    var windowCapMs = DashboardState.isLast24hMode ? (24 * 60 * 60 * 1000) : (24 * 60 * 60 * 1000);
-                    if (site.downtimeMs > windowCapMs) {
-                        site.downtimeMs = windowCapMs;
-                    }
-
-                    // Calculate updated Downtime string
-                    var dtSeconds = Math.floor(site.downtimeMs / 1000);
-                    var dtH = Math.floor(dtSeconds / 3600);
-                    var dtM = Math.floor((dtSeconds % 3600) / 60);
-                    var dtS = dtSeconds % 60;
-
-                    var dtStr = "";
-                    if (dtH > 0) dtStr = dtH + "h " + dtM + "m " + dtS + "s";
-                    else if (dtM > 0) dtStr = dtM + "m " + dtS + "s";
-                    else dtStr = dtS + "s";
-
-                    site.downtimeFormatted = dtStr;
-
-                    // Calculate updated Available time (Window - Downtime)
-                    var availMs = windowCapMs - site.downtimeMs;
-                    if (availMs < 0) availMs = 0;
-
-                    var avSeconds = Math.floor(availMs / 1000);
-                    var avH = Math.floor(avSeconds / 3600);
-                    var avM = Math.floor((avSeconds % 3600) / 60);
-                    var avS = avSeconds % 60;
-
-                    var avStr = "";
-                    if (avH > 0) avStr = avH + "h " + avM + "m " + avS + "s";
-                    else if (avM > 0) avStr = avM + "m " + avS + "s";
-                    else avStr = avS + "s";
-
-                    site.availableFormatted = avStr;
-
-                    // Calculate updated Availability Rate %
-                    var pct = ((availMs / windowCapMs) * 100).toFixed(1);
-                    site.availRatePct = pct;
-
-                    // Update DOM elements live for Downtime, Available, and Avail Rate %
-                    // Columns in <tr>:
-                    // 0: NO, 1: SITE NAME, 2: REGION, 3: VENDOR, 4: DOWNTIME, 5: AVAILABLE, 6: AVAIL RATE %, 7: LAST OCCURRENCE
-                    var cells = row.querySelectorAll('td');
-                    if (cells && cells.length >= 7) {
-                        // Downtime (Column 4)
-                        cells[4].innerText = dtStr;
-
-                        // Available (Column 5)
-                        cells[5].innerText = avStr;
-
-                        // Avail Rate % (Column 6)
-                        cells[6].innerText = pct + "%";
-                    }
-
-                    // Also update Most Affected Site Card subtitle if this site is currently the top affected
-                    var topSiteName = (DashboardState.summary && DashboardState.summary.mostAffectedSite || '').toLowerCase().trim();
-                    var currentSiteName = (site.siteName || '').toLowerCase().trim();
-
-                    if (topSiteName && topSiteName !== '-' && topSiteName === currentSiteName) {
-                        DashboardState.summary.mostAffectedSiteDowntime = dtStr;
-                        var statMostDt = document.getElementById('statMostAffectedDowntime');
-                        if (statMostDt) {
-                            statMostDt.innerText = dtStr + " down";
-                        }
-                    }
+            if (visibleSite) {
+                var cells = row.querySelectorAll('td');
+                if (cells && cells.length >= 7) {
+                    cells[4].innerText = visibleSite.downtimeFormatted || '0s';
+                    cells[5].innerText = visibleSite.availableFormatted || '0s';
+                    cells[6].innerText = (visibleSite.availRatePct || '100.0') + "%";
                 }
             }
         }
