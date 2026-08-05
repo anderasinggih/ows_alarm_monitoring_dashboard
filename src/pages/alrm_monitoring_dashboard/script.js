@@ -28,30 +28,34 @@
 // OWS Service Endpoint Path
 var SERVICE_ENDPOINT = "/adc-service/rest/v1/services/gde_dashboard/alarm_monitoring_dashboard/alarm_moni_alarmget";
 
-function formatYYYYMMDD(d) {
+function formatDateTimeLocal(d) {
     var yyyy = d.getFullYear();
     var mm = String(d.getMonth() + 1);
     if (mm.length < 2) mm = "0" + mm;
     var dd = String(d.getDate());
     if (dd.length < 2) dd = "0" + dd;
-    return yyyy + "-" + mm + "-" + dd;
+    var hh = String(d.getHours());
+    if (hh.length < 2) hh = "0" + hh;
+    var mi = String(d.getMinutes());
+    if (mi.length < 2) mi = "0" + mi;
+    return yyyy + "-" + mm + "-" + dd + "T" + hh + ":" + mi;
 }
 
 function getDefaultDates() {
     var e = new Date();
     var s = new Date(e.getTime() - (7 * 24 * 60 * 60 * 1000));
     return {
-        startDate: formatYYYYMMDD(s),
-        endDate: formatYYYYMMDD(e)
+        startDate: formatDateTimeLocal(s),
+        endDate: formatDateTimeLocal(e)
     };
 }
 
 function getTodayDates() {
     var now = new Date();
-    var todayStr = formatYYYYMMDD(now);
+    var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     return {
-        startDate: todayStr,
-        endDate: todayStr
+        startDate: formatDateTimeLocal(startToday),
+        endDate: formatDateTimeLocal(now)
     };
 }
 
@@ -61,7 +65,7 @@ var initialDates = getDefaultDates();
 var DashboardState = {
     loading: false,
     viewMode: 'list', // 'list' or 'grid'
-    isTodayMode: true, // DEFAULT TODAY MODE (00:00:00 - 23:59:59)
+    isTodayMode: true, // DEFAULT TODAY MODE (00:00 - Current Time)
     isAllTimeMode: false,
     allSites: [],
     filteredSites: [],
@@ -85,19 +89,16 @@ var DashboardState = {
 // Helper to calculate active date label
 function getActiveFilterLabel() {
     if (DashboardState.isTodayMode) {
-        return "Active: Today (00:00 – 23:59)";
+        return "Active: Today (00:00 – Now)";
     }
     if (DashboardState.isAllTimeMode) {
         return "Active: All Time (Live & History)";
     }
     var s = DashboardState.startDate;
     var e = DashboardState.endDate;
-    var def = getDefaultDates();
 
-    if (s === def.startDate && e === def.endDate) {
-        return "Active: Last 7 Days";
-    } else if (s && e) {
-        return "Active: " + s + " – " + e;
+    if (s && e) {
+        return "Active: " + s.replace("T", " ") + " – " + e.replace("T", " ");
     }
     return "Active: Custom Range";
 }
@@ -109,20 +110,20 @@ function renderFilterPanel() {
         var html = '' +
             '<div class="custom-filter-card">' +
             '  <div class="custom-filter-title-row">' +
-            '    <div class="custom-filter-title">Date Range Filter</div>' +
+            '    <div class="custom-filter-title">Date & Time Range Filter</div>' +
             '    <div id="customActiveFilterBadge" class="custom-active-filter-badge">' + getActiveFilterLabel() + '</div>' +
             '  </div>' +
             '  <div class="custom-filter-row">' +
             '    <div class="custom-filter-group">' +
-            '      <span class="custom-filter-label">Start Date</span>' +
-            '      <input type="date" id="customStartDateInput" class="custom-date-input" value="' + DashboardState.startDate + '" />' +
+            '      <span class="custom-filter-label">Start Date & Time</span>' +
+            '      <input type="datetime-local" id="customStartDateInput" class="custom-date-input" value="' + DashboardState.startDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-group">' +
-            '      <span class="custom-filter-label">End Date</span>' +
-            '      <input type="date" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
+            '      <span class="custom-filter-label">End Date & Time</span>' +
+            '      <input type="datetime-local" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-actions">' +
-            '      <button id="customQuickTodayBtn" class="custom-btn-quick24" title="Quick Filter Today (00:00 - 23:59)">Today</button>' +
+            '      <button id="customQuickTodayBtn" class="custom-btn-quick24" title="Quick Filter Today (00:00 - Now)">Today</button>' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
             '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (Today)</button>' +
             '    </div>' +

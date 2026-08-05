@@ -190,27 +190,21 @@ if (startDateStr === "" && endDateStr === "") {
     windowEndMs = nowMs;
     windowStartMs = nowMs - (24 * 60 * 60 * 1000);
 } else if (startDateStr !== "" && endDateStr !== "") {
-    if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
-    if (endDateStr.length > 10) endDateStr = endDateStr.substring(0, 10);
-
-    // Check if user selected 24h range or single day
-    var dStartTemp = new Date(startDateStr + "T00:00:00");
-    var dEndTemp = new Date(endDateStr + "T00:00:00");
-
-    var diffDays = Math.round((dEndTemp.getTime() - dStartTemp.getTime()) / (24 * 60 * 60 * 1000));
-
-    if (startDateStr === endDateStr) {
-        // TODAY / SINGLE DAY MODE: From 00:00:00 to 23:59:59 of that day
-        var dStartToday = new Date(startDateStr + "T00:00:00");
-        windowStartMs = dStartToday.getTime();
-        var dEndToday = new Date(endDateStr + "T23:59:59");
-        windowEndMs = dEndToday.getTime();
-    } else {
-        // Multi-day custom range
-        windowStartMs = isNaN(dStartTemp.getTime()) ? (new Date(new Date().setHours(0, 0, 0, 0)).getTime()) : dStartTemp.getTime();
-        var dEndFull = new Date(endDateStr + "T23:59:59");
-        windowEndMs = isNaN(dEndFull.getTime()) ? nowMs : dEndFull.getTime();
+    function parseDateTimeInput(str, isEnd) {
+        if (!str) return isEnd ? nowMs : new Date().setHours(0, 0, 0, 0);
+        var s = str.trim();
+        if (s.indexOf("T") !== -1) {
+            var dt = new Date(s);
+            return isNaN(dt.getTime()) ? (isEnd ? nowMs : new Date().setHours(0, 0, 0, 0)) : dt.getTime();
+        }
+        if (s.length > 10) s = s.substring(0, 10);
+        var d = new Date(s + (isEnd ? "T23:59:59" : "T00:00:00"));
+        return isNaN(d.getTime()) ? (isEnd ? nowMs : new Date().setHours(0, 0, 0, 0)) : d.getTime();
     }
+
+    windowStartMs = parseDateTimeInput(startDateStr, false);
+    windowEndMs = parseDateTimeInput(endDateStr, true);
+}
 } else if (startDateStr !== "") {
     if (startDateStr.length > 10) startDateStr = startDateStr.substring(0, 10);
     var dStart = new Date(startDateStr + "T00:00:00");
