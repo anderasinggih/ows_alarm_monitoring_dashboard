@@ -573,7 +573,7 @@ function openSiteDetailModal(siteData) {
     var alarmsList = siteData.alarms || [];
 
     var modalHtml = '' +
-        '<div class="custom-modal-dialog">' +
+        '<div class="custom-modal-dialog" data-site-name="' + siteData.siteName + '">' +
         '  <div class="custom-modal-header">' +
         '    <div>' +
         '      <div class="custom-modal-subtitle">Site detail</div>' +
@@ -586,15 +586,15 @@ function openSiteDetailModal(siteData) {
         '  <div class="custom-modal-metrics">' +
         '    <div>' +
         '      <div class="custom-metric-label">Downtime</div>' +
-        '      <div class="custom-metric-val-danger">' + (siteData.downtimeFormatted || '0m') + '</div>' +
+        '      <div id="customModalDowntime" class="custom-metric-val-danger">' + (siteData.downtimeFormatted || '0m') + '</div>' +
         '    </div>' +
         '    <div>' +
         '      <div class="custom-metric-label">Available</div>' +
-        '      <div class="custom-metric-val-success">' + (siteData.availableFormatted || '0m') + '</div>' +
+        '      <div id="customModalAvailable" class="custom-metric-val-success">' + (siteData.availableFormatted || '0m') + '</div>' +
         '    </div>' +
         '    <div>' +
         '      <div class="custom-metric-label">Availability</div>' +
-        '      <div class="custom-metric-val-white">' + (siteData.availRatePct || '100.0') + '%</div>' +
+        '      <div id="customModalAvailRate" class="custom-metric-val-white">' + (siteData.availRatePct || '100.0') + '%</div>' +
         '    </div>' +
         '  </div>' +
         '' +
@@ -615,12 +615,15 @@ function openSiteDetailModal(siteData) {
     } else {
         for (var a = 0; a < alarmsList.length; a++) {
             var alarm = alarmsList[a];
+            var isActiveAlarm = alarm.clearStr === 'Active (Now)';
+            var durClassAttr = isActiveAlarm ? ' class="custom-modal-active-duration" data-occur-ms="' + (alarm.occurMs || 0) + '"' : '';
+
             modalHtml += '' +
                 '<tr>' +
                 '  <td style="color: #f4f4f5; font-weight: 500;">' + alarm.alarmName + '</td>' +
                 '  <td style="text-align: center; color: #a1a1aa;">' + alarm.occurStr + '</td>' +
                 '  <td style="text-align: center; color: #a1a1aa;">' + alarm.clearStr + '</td>' +
-                '  <td style="text-align: right; color: #f4f4f5; font-weight: 700;">' + alarm.durationFormatted + '</td>' +
+                '  <td style="text-align: right; color: #f4f4f5; font-weight: 700;"' + durClassAttr + '>' + alarm.durationFormatted + '</td>' +
                 '</tr>';
         }
     }
@@ -749,6 +752,29 @@ function startLiveTicker() {
                 if (statMostDt) {
                     statMostDt.innerText = dtStr + " down";
                 }
+            }
+
+            // Update Site Detail Modal metrics & alarm table if open for this site
+            var modalDialog = document.querySelector('.custom-modal-dialog');
+            if (modalDialog && modalDialog.getAttribute('data-site-name') === st.siteName) {
+                var mDt = document.getElementById('customModalDowntime');
+                var mAv = document.getElementById('customModalAvailable');
+                var mPct = document.getElementById('customModalAvailRate');
+
+                if (mDt) mDt.innerText = dtStr;
+                if (mAv) mAv.innerText = avStr;
+                if (mPct) mPct.innerText = st.availRatePct + "%";
+
+                // Update active alarm duration in modal table
+                var activeAlarmDurCells = modalDialog.querySelectorAll('.custom-modal-active-duration');
+                activeAlarmDurCells.forEach(function (cell) {
+                    var occMs = parseInt(cell.getAttribute('data-occur-ms'), 10);
+                    if (!isNaN(occMs) && occMs > 0) {
+                        var durMs = now.getTime() - occMs;
+                        if (durMs < 0) durMs = 0;
+                        cell.innerText = formatDuration(durMs);
+                    }
+                });
             }
         }
 
