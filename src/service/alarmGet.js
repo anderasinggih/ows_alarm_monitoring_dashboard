@@ -44,6 +44,28 @@ function toNumber(value) {
     return isNaN(n) ? 0 : n;
 }
 
+function parseOWSTimestamp(val, defaultFallback) {
+    if (!val) return defaultFallback || 0;
+    var str = extractOWSField(val);
+    if (!str) return defaultFallback || 0;
+
+    // Check if it is a numeric epoch timestamp
+    var num = parseFloat(str);
+    if (!isNaN(num) && num > 0) {
+        // If timestamp is in seconds (10 digits), convert to milliseconds
+        if (num < 10000000000) return num * 1000;
+        return num;
+    }
+
+    // Standard ISO string format parse: YYYY-MM-DD HH:mm:ss or YYYY-MM-DDTHH:mm:ss
+    var cleanStr = str.replace(' ', 'T');
+    var dt = new Date(cleanStr);
+    if (!isNaN(dt.getTime())) {
+        return dt.getTime();
+    }
+    return defaultFallback || 0;
+}
+
 function getRows(response) {
     if (!response) return [];
     if (response.result && response.result._values) return response.result._values;
@@ -295,7 +317,7 @@ for (var l = 0; l < liveRows.length; l++) {
 
     totalLiveAlarms++;
 
-    var startL = toNumber(alarmL.firstinserttime) || windowStartMs;
+    var startL = parseOWSTimestamp(alarmL.firstinserttime || alarmL.eventtime || alarmL.event_time, windowStartMs);
     // Cap startL to windowStartMs for availability calculation if occurred before window
     var effStartL = startL < windowStartMs ? windowStartMs : startL;
     var endL = windowEndMs;
@@ -333,8 +355,8 @@ for (var l = 0; l < liveRows.length; l++) {
 
 for (var h = 0; h < historyRows.length; h++) {
     var alarmH = historyRows[h];
-    var startH = toNumber(alarmH.firstinserttime) || windowStartMs;
-    var rawClearH = toNumber(alarmH.cleartime);
+    var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.eventtime || alarmH.event_time, windowStartMs);
+    var rawClearH = parseOWSTimestamp(alarmH.cleartime, 0);
 
     // If cleartime is 0, null, or empty, alarm is NOT cleared yet (Active)
     var isHistoryCleared = rawClearH > 0;

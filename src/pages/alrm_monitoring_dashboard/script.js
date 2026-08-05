@@ -695,35 +695,25 @@ function startLiveTicker() {
             if (!st) continue;
 
             var hasActiveAlarm = false;
-            var earliestActiveOccurMs = 0;
-
             if (st.alarms && st.alarms.length > 0) {
                 for (var a = 0; a < st.alarms.length; a++) {
                     if (st.alarms[a].clearStr === 'Active (Now)') {
                         hasActiveAlarm = true;
-                        var occ = st.alarms[a].occurMs || 0;
-                        if (earliestActiveOccurMs === 0 || (occ > 0 && occ < earliestActiveOccurMs)) {
-                            earliestActiveOccurMs = occ;
-                        }
+                        break;
                     }
                 }
             }
 
-            // Real-time dynamic downtime calculation based on actual clock time (nowMs)
-            var currentDowntimeMs = st.downtimeMs || 0;
             if (hasActiveAlarm) {
-                // If baseline downtime was provided, add the live delta elapsed since last fetch
-                if (!st.initialFetchedAt) st.initialFetchedAt = now.getTime();
-                var liveElapsedMs = now.getTime() - st.initialFetchedAt;
-                currentDowntimeMs = (st.baseDowntimeMs !== undefined ? st.baseDowntimeMs : (st.downtimeMs || 0)) + liveElapsedMs;
+                st.downtimeMs = (st.downtimeMs || 0) + 1000;
+                if (st.downtimeMs > windowCapMs) {
+                    st.downtimeMs = windowCapMs;
+                }
             }
 
-            if (currentDowntimeMs > windowCapMs) {
-                currentDowntimeMs = windowCapMs;
-            }
-
-            // Calculate updated Downtime string
-            var dtSeconds = Math.floor(currentDowntimeMs / 1000);
+            // Downtime duration strictly from OWS backend model + 1s increment while session active
+            var dtMs = st.downtimeMs || 0;
+            var dtSeconds = Math.floor(dtMs / 1000);
             var dtH = Math.floor(dtSeconds / 3600);
             var dtM = Math.floor((dtSeconds % 3600) / 60);
             var dtS = dtSeconds % 60;
@@ -735,8 +725,8 @@ function startLiveTicker() {
 
             st.downtimeFormatted = dtStr;
 
-            // Calculate updated Available time (Window - Downtime)
-            var availMs = windowCapMs - currentDowntimeMs;
+            // Available time strictly derived from (Window - Downtime)
+            var availMs = windowCapMs - dtMs;
             if (availMs < 0) availMs = 0;
 
             var avSeconds = Math.floor(availMs / 1000);
