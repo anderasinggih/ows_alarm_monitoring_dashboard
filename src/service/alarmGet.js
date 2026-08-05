@@ -130,13 +130,18 @@ function formatTimeOnly(ms) {
     if (!ms) return "-";
     // Force WIB (UTC+7) offset conversion
     var d = new Date(Number(ms) + (7 * 60 * 60 * 1000));
+    var yyyy = d.getUTCFullYear();
+    var mm = String(d.getUTCMonth() + 1);
+    if (mm.length < 2) mm = "0" + mm;
+    var dd = String(d.getUTCDate());
+    if (dd.length < 2) dd = "0" + dd;
     var hh = String(d.getUTCHours());
     if (hh.length < 2) hh = "0" + hh;
     var mi = String(d.getUTCMinutes());
     if (mi.length < 2) mi = "0" + mi;
     var ss = String(d.getUTCSeconds());
     if (ss.length < 2) ss = "0" + ss;
-    return hh + ":" + mi + ":" + ss;
+    return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi + ":" + ss;
 }
 
 function mergeOverlappingIntervals(intervals) {
