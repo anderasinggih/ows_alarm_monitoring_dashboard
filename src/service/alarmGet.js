@@ -104,12 +104,7 @@ function queryByTql(tql, parameters, customMaxLimit) {
             }
 
             allRows = allRows.concat(pageRows);
-
-            if (pageRows.length < pageSize) {
-                break;
-            }
-
-            start += pageSize;
+            start += pageRows.length;
         }
         return allRows;
     } catch (e) {
