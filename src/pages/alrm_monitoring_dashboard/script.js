@@ -1,10 +1,6 @@
+if (typeof JSON !== 'undefined' && JSON.parse) { var _origParse = JSON.parse; JSON.parse = function(s, r) { if (!s) return null; try { return _origParse(s, r); } catch (e) { return null; } }; }
 /**
  * Huawei OWS Alarm Monitoring Dashboard - Pure UI Presenter (script.js)
- * Features:
- * - 100% Dynamic UI Element Injection (Filter Panel & View Toggle Buttons)
- * - Default Page Size: 50 rows per page
- * - Dynamic View Switcher: List View & Grid View (Matches Reference Screenshot)
- * - Robust Lifecycle Initialization
  */
 
 
@@ -47,7 +43,8 @@ function getTodayDates() {
 var initialDates = getDefaultDates();
 
 // Global Dashboard State (Default Rows per Page = 50)
-var DashboardState = (typeof window !== 'undefined' && window.DashboardState) ? window.DashboardState : {
+// Global Dashboard State (Default Rows per Page = 50)
+var DashboardState = {
     loading: false,
     viewMode: 'list', // 'list' or 'grid'
     isTodayMode: true, // DEFAULT TODAY MODE (00:00 - Current Time)
@@ -72,10 +69,6 @@ var DashboardState = (typeof window !== 'undefined' && window.DashboardState) ? 
         mostAffectedSiteDowntime: "0m"
     }
 };
-
-if (typeof window !== 'undefined') {
-    window.DashboardState = DashboardState;
-}
 
 // Helper to calculate active date label
 // Helper to calculate active filter badges HTML
@@ -742,16 +735,12 @@ function openSiteDetailModal(siteData) {
         '<div class="custom-modal-dialog" data-site-name="' + siteData.siteName + '">' +
         '  <div class="custom-modal-header">' +
         '    <div>' +
-        '      <div class="custom-modal-subtitle">SITE DETAIL</div>' +
-        '      <div class="custom-modal-title">' + siteData.siteName + ' <span style="font-size: 13px; font-weight: normal; color: #a1a1aa;">(ID: ' + (siteData.siteId || '-') + ')</span></div>' +
-        '      <div style="font-size: 12px; color: #38bdf8; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
-        '        <span>📅 On-Air: <b style="color: #67e8f9;">' + (siteData.onAirStr || '-') + '</b></span>' +
-        '        <span style="color: #52525b;">•</span>' +
-        '        <span>Region: <b style="color: #e4e4e7;">' + (siteData.regionLabel || '-') + '</b></span>' +
-        '        <span style="color: #52525b;">•</span>' +
-        '        <span>Vendor: <b style="color: #e4e4e7;">' + (siteData.vendorLabel || '-') + '</b></span>' +
+        '      <div class="custom-modal-subtitle">Site detail</div>' +
+        '      <div class="custom-modal-title">' + siteData.siteName + '</div>' +
+        '      <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px; flex-wrap: wrap;">' +
+        '        <div class="custom-modal-date">' + DashboardState.startDate + ' – ' + DashboardState.endDate + '</div>' +
+        '        <div style="font-size: 12px; color: #34d399; font-weight: 500; background: rgba(16, 185, 129, 0.12); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.3);">⚡ On-Air: ' + (siteData.onAirStr || '-') + '</div>' +
         '      </div>' +
-        '      <div class="custom-modal-date" style="margin-top: 4px;">Period: ' + DashboardState.startDate + ' – ' + DashboardState.endDate + '</div>' +
         '    </div>' +
         '    <button id="customCloseModalBtn" class="custom-modal-close-btn">X</button>' +
         '  </div>' +
@@ -873,10 +862,6 @@ function openSiteDetailModal(siteData) {
     var closeBtnBottom = document.getElementById('customCloseModalBtnBottom');
 
     function closeModal() {
-        if (DashboardState.modalTimerInterval) {
-            clearInterval(DashboardState.modalTimerInterval);
-            DashboardState.modalTimerInterval = null;
-        }
         modalContainer.style.setProperty('display', 'none', 'important');
         modalContainer.innerHTML = '';
     }

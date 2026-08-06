@@ -1,8 +1,6 @@
+if (typeof JSON !== 'undefined' && JSON.parse) { var _origParse = JSON.parse; JSON.parse = function(s, r) { if (!s) return null; try { return _origParse(s, r); } catch (e) { return null; } }; }
 /**
  * OWS GDE Studio - Alarm Monitoring RunScript Backend (alarmGet / alrmget)
- * Features:
- * - SLA Summary & Site Aggregation (Merged Overlapping Intervals)
- * - Raw Alarm List per Site for Site Detail Drilldown Modal
  */
 
 
@@ -83,7 +81,7 @@ function queryByTql(tql, parameters, customMaxLimit) {
     var allRows = [];
     var start = 0;
     var pageSize = 1000;
-    var maxRowsLimit = customMaxLimit || 50000; // High capacity limit (50,000 records) to ensure 100% full historical alarm coverage
+    var maxRowsLimit = customMaxLimit || 5000; // Balanced limit (5000 records) to safely fit under OWS 500MB JS Memory quota
 
     try {
         while (start < maxRowsLimit) {
@@ -326,22 +324,20 @@ var siteTql = "SELECT * FROM \"/datahub/cmdb/cmdb_site\" " +
     "AND site_stage = 'f343d1fb-e165-11f0-90da-0255ac121938'";
 
 if (selectedVendorStr !== "") {
-    var cleanVen = selectedVendorStr.replace(/'/g, "''");
     var matchingVendorIds = vendorNameToIdsMap[selectedVendorStr.toLowerCase()] || [];
     if (matchingVendorIds.length > 0) {
-        siteTql += " AND (vendor IN (" + matchingVendorIds.join(",") + ") OR vendor_id IN (" + matchingVendorIds.join(",") + ") OR vendor = '" + cleanVen + "')";
+        siteTql += " AND (vendor IN (" + matchingVendorIds.join(",") + ") OR vendor_id IN (" + matchingVendorIds.join(",") + ") OR vendor = '" + selectedVendorStr + "')";
     } else {
-        siteTql += " AND (vendor = '" + cleanVen + "' OR vendor_id = '" + cleanVen + "')";
+        siteTql += " AND (vendor = '" + selectedVendorStr + "' OR vendor_id = '" + selectedVendorStr + "')";
     }
 }
 
 if (selectedRegionStr !== "") {
-    var cleanReg = selectedRegionStr.replace(/'/g, "''");
     var matchingRegionIds = regionNameToIdsMap[selectedRegionStr.toLowerCase()] || [];
     if (matchingRegionIds.length > 0) {
-        siteTql += " AND (region_name IN (" + matchingRegionIds.join(",") + ") OR region IN (" + matchingRegionIds.join(",") + ") OR region_name = '" + cleanReg + "')";
+        siteTql += " AND (region_name IN (" + matchingRegionIds.join(",") + ") OR region IN (" + matchingRegionIds.join(",") + ") OR region_name = '" + selectedRegionStr + "')";
     } else {
-        siteTql += " AND (region_name = '" + cleanReg + "' OR region = '" + cleanReg + "')";
+        siteTql += " AND (region_name = '" + selectedRegionStr + "' OR region = '" + selectedRegionStr + "')";
     }
 }
 
@@ -375,8 +371,8 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
-var liveRows = queryByTql(liveTql, {}, 20000);
-var historyRows = queryByTql(historyTql, {}, 50000);
+var liveRows = queryByTql(liveTql, {}, 5000);
+var historyRows = queryByTql(historyTql, {}, 5000);
 var ttRows = queryByTql(ttTql, {}, 1000);
 var bsRows = queryByTql(bsTql, {}, 200);
 
@@ -583,6 +579,7 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
             vendorLabel: cVendorLabel,
             vendorId: cVendorRaw,
             onAirMs: cOnAirMs,
+            onAirStr: cOnAirStr,
             totalAlarms: 0,
             intervals: [],
             alarms: [],
@@ -785,7 +782,7 @@ for (var sKey in siteIntervalMap) {
         vendorLabel: item.vendorLabel || '-',
         vendorId: item.vendorId || '-',
         onAirMs: item.onAirMs || 0,
-        onAirStr: item.onAirMs ? formatTimeOnly(item.onAirMs) : '-',
+        onAirStr: item.onAirStr || (item.onAirMs ? formatTimeOnly(item.onAirMs) : '-'),
         totalAlarms: item.totalAlarms,
         downtimeMs: totalDowntimeMergedMs,
         lastOccurrenceMs: latestOccurMs,
