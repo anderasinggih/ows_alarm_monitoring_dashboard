@@ -316,7 +316,9 @@ function fetchDashboardData() {
             endDate: DashboardState.endDate,
             region: DashboardState.selectedRegion || '',
             vendor: DashboardState.selectedVendor || '',
-            searchQuery: DashboardState.searchQuery || ''
+            searchQuery: DashboardState.searchQuery || '',
+            page: DashboardState.pagination.currentPage || 1,
+            pageSize: DashboardState.pagination.pageSize || 50
         },
         success: function (res) {
             try {
@@ -327,6 +329,13 @@ function fetchDashboardData() {
                     console.log('⚡ PERFORMANCE CPU LOG:');
                     console.log('Durasi Eksekusi Backend:', resultData._performanceStatus.executionDurationSec, '(' + resultData._performanceStatus.executionDurationMs + 'ms)');
                     console.log('Status CPU:', resultData._performanceStatus.statusMessage);
+                }
+
+                if (resultData && resultData.pagination) {
+                    DashboardState.pagination.currentPage = resultData.pagination.currentPage || 1;
+                    DashboardState.pagination.pageSize = resultData.pagination.pageSize || 50;
+                    DashboardState.pagination.totalSites = resultData.pagination.totalSites || 0;
+                    DashboardState.pagination.totalPages = resultData.pagination.totalPages || 1;
                 }
 
                 if (resultData && resultData.summary) {
@@ -676,13 +685,13 @@ function renderTable() {
         });
     });
 
-    // Attach Pagination Event Listeners
+    // Attach Pagination Event Listeners (Server-Side Page-Level Pushdown)
     var sizeSelect = document.getElementById('customPageSizeSelect');
     if (sizeSelect) {
         sizeSelect.addEventListener('change', function () {
             pag.pageSize = parseInt(this.value, 10) || 50;
             pag.currentPage = 1;
-            renderTable();
+            fetchDashboardData();
         });
     }
 
@@ -690,7 +699,7 @@ function renderTable() {
     if (prevBtn && pag.currentPage > 1) {
         prevBtn.addEventListener('click', function () {
             pag.currentPage--;
-            renderTable();
+            fetchDashboardData();
         });
     }
 
@@ -698,7 +707,7 @@ function renderTable() {
     if (nextBtn && pag.currentPage < totalPages) {
         nextBtn.addEventListener('click', function () {
             pag.currentPage++;
-            renderTable();
+            fetchDashboardData();
         });
     }
 }

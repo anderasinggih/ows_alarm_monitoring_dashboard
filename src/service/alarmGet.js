@@ -209,8 +209,10 @@ var endDateStr = extractOWSField(reqParams.endDate);
 var selectedRegionStr = extractOWSField(reqParams.region);
 var selectedVendorStr = extractOWSField(reqParams.vendor);
 var searchQueryStr = extractOWSField(reqParams.searchQuery);
-
-var WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+var reqPage = parseInt(extractOWSField(reqParams.page || reqParams.currentPage || '1'), 10);
+var reqPageSize = parseInt(extractOWSField(reqParams.pageSize || '50'), 10);
+if (isNaN(reqPage) || reqPage < 1) reqPage = 1;
+if (isNaN(reqPageSize) || reqPageSize < 1) reqPageSize = 50;
 
 var nowObj = new Date();
 var nowMs = nowObj.getTime();
@@ -346,11 +348,19 @@ if (searchQueryStr !== "") {
 }
 
 var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
+var totalFilteredSitesCount = cmdbSiteRows.length;
+var totalPagesCount = Math.ceil(totalFilteredSitesCount / reqPageSize);
+if (totalPagesCount < 1) totalPagesCount = 1;
+if (reqPage > totalPagesCount) reqPage = totalPagesCount;
 
-// Collect All FWA Site IDs for Database Level IN Filtering (STRICT MURNI: site_id ONLY)
+var pageStartIndex = (reqPage - 1) * reqPageSize;
+var pageEndIndex = pageStartIndex + reqPageSize;
+var pagedCmdbSiteRows = cmdbSiteRows.slice(pageStartIndex, pageEndIndex);
+
+// Collect Paged FWA Site IDs for Server-Side Page-Level Alarm Pushdown Query
 var fwaSiteCodesList = [];
-for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
-    var cRow = cmdbSiteRows[cs];
+for (var cs = 0; cs < pagedCmdbSiteRows.length; cs++) {
+    var cRow = pagedCmdbSiteRows[cs];
     var sIdVal = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid'));
     if (sIdVal) fwaSiteCodesList.push("'" + sIdVal + "'");
 }
@@ -515,9 +525,9 @@ var siteIntervalMap = {};
 var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
 var totalAlarmCountAccumulated = 0;
 
-// 1. PRE-POPULATE MASTER SITES FROM CMDB (cmdb_site)
-for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
-    var cRow = cmdbSiteRows[cs];
+// 1. PRE-POPULATE MASTER SITES FROM PAGED CMDB SITES (pagedCmdbSiteRows)
+for (var cs = 0; cs < pagedCmdbSiteRows.length; cs++) {
+    var cRow = pagedCmdbSiteRows[cs];
     var cSiteName = extractOWSField(getPropIC(cRow, 'site_name') || getPropIC(cRow, 'sitename') || getPropIC(cRow, 'name') || getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid') || getPropIC(cRow, 'site_code') || getPropIC(cRow, 'sitecode'));
     if (!cSiteName) continue;
 
@@ -828,6 +838,12 @@ return {
                 rawLiveFetched: liveRows.length,
                 matchedLiveAlarms: totalAlarmCountAccumulated
             }
+        },
+        pagination: {
+            currentPage: reqPage,
+            pageSize: reqPageSize,
+            totalSites: totalFilteredSitesCount,
+            totalPages: totalPagesCount
         },
         sites: sitesList,
         _performanceStatus: {
