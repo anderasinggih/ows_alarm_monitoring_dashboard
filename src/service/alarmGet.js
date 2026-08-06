@@ -836,8 +836,8 @@ return {
         pagination: {
             currentPage: reqPage,
             pageSize: reqPageSize,
-            totalSites: totalFilteredSitesCount,
-            totalPages: totalPagesCount
+            totalSites: cmdbSiteRows.length,
+            totalPages: Math.ceil(cmdbSiteRows.length / reqPageSize) || 1
         },
         sites: sitesList,
         _performanceStatus: {
