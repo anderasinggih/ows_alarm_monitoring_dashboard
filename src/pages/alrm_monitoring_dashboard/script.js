@@ -47,8 +47,7 @@ function getTodayDates() {
 var initialDates = getDefaultDates();
 
 // Global Dashboard State (Default Rows per Page = 50)
-// Global Dashboard State (Default Rows per Page = 50)
-var DashboardState = {
+var DashboardState = (typeof window !== 'undefined' && window.DashboardState) ? window.DashboardState : {
     loading: false,
     viewMode: 'list', // 'list' or 'grid'
     isTodayMode: true, // DEFAULT TODAY MODE (00:00 - Current Time)
@@ -73,6 +72,10 @@ var DashboardState = {
         mostAffectedSiteDowntime: "0m"
     }
 };
+
+if (typeof window !== 'undefined') {
+    window.DashboardState = DashboardState;
+}
 
 // Helper to calculate active date label
 // Helper to calculate active filter badges HTML
