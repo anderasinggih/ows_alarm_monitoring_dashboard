@@ -837,7 +837,11 @@ sitesList.sort(function (a, b) {
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
 
-var globalAvgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
+var totalNetworkSites = totalFilteredSitesCount > 0 ? totalFilteredSitesCount : sitesList.length;
+var unaffectedSitesCount = totalNetworkSites - sitesList.length;
+if (unaffectedSitesCount < 0) unaffectedSitesCount = 0;
+var networkTotalAvailSum = (unaffectedSitesCount * 100.0) + totalAvailRateSum;
+var globalAvgAvailabilityPct = totalNetworkSites > 0 ? (networkTotalAvailSum / totalNetworkSites).toFixed(1) : "100.0";
 
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
