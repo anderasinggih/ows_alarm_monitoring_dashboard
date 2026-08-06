@@ -382,6 +382,26 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
+// Collect ALL FWA Site IDs for Network-Wide Global KPI Cards
+var globalFwaSiteCodesList = [];
+for (var acs = 0; acs < cmdbSiteRows.length; acs++) {
+    var acRow = cmdbSiteRows[acs];
+    var asIdVal = extractOWSField(getPropIC(acRow, 'site_id') || getPropIC(acRow, 'siteid'));
+    if (asIdVal) globalFwaSiteCodesList.push("'" + asIdVal + "'");
+}
+
+var globalSiteInClause = globalFwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + globalFwaSiteCodesList.join(",") + ")") : " AND sitecode IN ('__NO_MATCHING_SITES__')";
+var globalLiveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + globalSiteInClause;
+var globalLiveRows = queryByTql(globalLiveTql, {}, 5000);
+
+var globalTotalAlarmsDown = globalLiveRows.length;
+var globalAffectedSitesMap = {};
+for (var gl = 0; gl < globalLiveRows.length; gl++) {
+    var glCode = extractOWSField(getPropIC(globalLiveRows[gl], 'sitecode') || getPropIC(globalLiveRows[gl], 'site_code') || getPropIC(globalLiveRows[gl], 'site_id') || getPropIC(globalLiveRows[gl], 'siteid'));
+    if (glCode) globalAffectedSitesMap[glCode] = true;
+}
+var globalSitesAffectedCount = Object.keys(globalAffectedSitesMap).length;
+
 var liveRows = queryByTql(liveTql, {}, 5000);
 var historyRows = queryByTql(historyTql, {}, 5000);
 var ttRows = queryByTql(ttTql, {}, 1000);
@@ -831,14 +851,14 @@ return {
             endDate: endISO.substring(0, 10)
         },
         summary: {
-            totalAlarmsDown: totalAlarmCountAccumulated,
-            sitesAffected: affectedSitesCount,
+            totalAlarmsDown: globalTotalAlarmsDown,
+            sitesAffected: globalSitesAffectedCount,
             avgAvailabilityPct: globalAvgAvailabilityPct,
             mostAffectedSite: mostAffectedSiteName,
             mostAffectedSiteDowntime: mostAffectedSiteDowntime,
             _debugMatchStats: {
-                rawLiveFetched: liveRows.length,
-                matchedLiveAlarms: totalAlarmCountAccumulated
+                rawLiveFetched: globalLiveRows.length,
+                matchedLiveAlarms: globalTotalAlarmsDown
             }
         },
         pagination: {
