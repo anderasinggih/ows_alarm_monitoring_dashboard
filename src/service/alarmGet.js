@@ -1,3 +1,4 @@
+if (typeof JSON.parse !== 'undefined') { var _origParse = JSON.parse; JSON.parse = function(s, r) { try { return _origParse(s, r); } catch(e) { return null; } }; }
 /**
  * OWS GDE Studio - Alarm Monitoring RunScript Backend (alarmGet / alrmget)
  * Features:
