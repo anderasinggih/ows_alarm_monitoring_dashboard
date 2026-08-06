@@ -870,6 +870,10 @@ function openSiteDetailModal(siteData) {
     var closeBtnBottom = document.getElementById('customCloseModalBtnBottom');
 
     function closeModal() {
+        if (DashboardState.modalTimerInterval) {
+            clearInterval(DashboardState.modalTimerInterval);
+            DashboardState.modalTimerInterval = null;
+        }
         modalContainer.style.setProperty('display', 'none', 'important');
         modalContainer.innerHTML = '';
     }
