@@ -739,9 +739,16 @@ function openSiteDetailModal(siteData) {
         '<div class="custom-modal-dialog" data-site-name="' + siteData.siteName + '">' +
         '  <div class="custom-modal-header">' +
         '    <div>' +
-        '      <div class="custom-modal-subtitle">Site detail</div>' +
-        '      <div class="custom-modal-title">' + siteData.siteName + '</div>' +
-        '      <div class="custom-modal-date">' + DashboardState.startDate + ' – ' + DashboardState.endDate + '</div>' +
+        '      <div class="custom-modal-subtitle">SITE DETAIL</div>' +
+        '      <div class="custom-modal-title">' + siteData.siteName + ' <span style="font-size: 13px; font-weight: normal; color: #a1a1aa;">(ID: ' + (siteData.siteId || '-') + ')</span></div>' +
+        '      <div style="font-size: 12px; color: #38bdf8; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
+        '        <span>📅 On-Air: <b style="color: #67e8f9;">' + (siteData.onAirStr || '-') + '</b></span>' +
+        '        <span style="color: #52525b;">•</span>' +
+        '        <span>Region: <b style="color: #e4e4e7;">' + (siteData.regionLabel || '-') + '</b></span>' +
+        '        <span style="color: #52525b;">•</span>' +
+        '        <span>Vendor: <b style="color: #e4e4e7;">' + (siteData.vendorLabel || '-') + '</b></span>' +
+        '      </div>' +
+        '      <div class="custom-modal-date" style="margin-top: 4px;">Period: ' + DashboardState.startDate + ' – ' + DashboardState.endDate + '</div>' +
         '    </div>' +
         '    <button id="customCloseModalBtn" class="custom-modal-close-btn">X</button>' +
         '  </div>' +

@@ -782,6 +782,8 @@ for (var sKey in siteIntervalMap) {
         regionId: item.regionId || '-',
         vendorLabel: item.vendorLabel || '-',
         vendorId: item.vendorId || '-',
+        onAirMs: item.onAirMs || 0,
+        onAirStr: item.onAirMs ? formatTimeOnly(item.onAirMs) : '-',
         totalAlarms: item.totalAlarms,
         downtimeMs: totalDowntimeMergedMs,
         lastOccurrenceMs: latestOccurMs,
