@@ -525,14 +525,15 @@ function renderTable() {
     }
 
     var pag = DashboardState.pagination;
-    var totalItems = pag.totalSites || list.length;
-    var totalPages = pag.totalPages || (Math.ceil(totalItems / pag.pageSize) || 1);
+    var totalItems = list.length;
+    var totalPages = Math.ceil(totalItems / pag.pageSize) || 1;
 
     if (pag.currentPage > totalPages) pag.currentPage = totalPages;
     if (pag.currentPage < 1) pag.currentPage = 1;
 
     var startIdx = (pag.currentPage - 1) * pag.pageSize;
-    var pageItems = list;
+    var endIdx = Math.min(startIdx + pag.pageSize, totalItems);
+    var pageItems = list.slice(startIdx, endIdx);
 
     var html = '' +
         '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #27272a; background: #18181b;">' +
@@ -549,7 +550,7 @@ function renderTable() {
         for (var g = 0; g < pageItems.length; g++) {
             var gSite = pageItems[g];
             var gPct = gSite.availRatePct || "100.0";
-            var gGlobalIndex = g;
+            var gGlobalIndex = startIdx + g;
             var gVendor = gSite.vendorLabel || '-';
             var gRegion = gSite.regionLabel || '-';
 
@@ -619,7 +620,7 @@ function renderTable() {
                 pctColor = '#f59e0b'; // Kuning (60 - 80%)
             }
             var rowNo = startIdx + i + 1;
-            var globalIndex = i;
+            var globalIndex = startIdx + i;
             var vLabel = site.vendorLabel || '-';
             var rLabel = site.regionLabel || '-';
             var sId = site.siteId || '-';
@@ -680,13 +681,13 @@ function renderTable() {
         });
     });
 
-    // Attach Pagination Event Listeners (Server-Side Page-Level Pushdown)
+    // Attach Pagination Event Listeners (Client-Side Local Pagination)
     var sizeSelect = document.getElementById('customPageSizeSelect');
     if (sizeSelect) {
         sizeSelect.addEventListener('change', function () {
             pag.pageSize = parseInt(this.value, 10) || 50;
             pag.currentPage = 1;
-            fetchDashboardData();
+            renderTable();
         });
     }
 
@@ -694,7 +695,7 @@ function renderTable() {
     if (prevBtn && pag.currentPage > 1) {
         prevBtn.addEventListener('click', function () {
             pag.currentPage--;
-            fetchDashboardData();
+            renderTable();
         });
     }
 
@@ -702,7 +703,7 @@ function renderTable() {
     if (nextBtn && pag.currentPage < totalPages) {
         nextBtn.addEventListener('click', function () {
             pag.currentPage++;
-            fetchDashboardData();
+            renderTable();
         });
     }
 }

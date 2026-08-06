@@ -104,7 +104,12 @@ function queryByTql(tql, parameters, customMaxLimit) {
             }
 
             allRows = allRows.concat(pageRows);
-            start += pageRows.length;
+
+            if (pageRows.length < pageSize) {
+                break;
+            }
+
+            start += pageSize;
         }
         return allRows;
     } catch (e) {
@@ -345,19 +350,11 @@ if (searchQueryStr !== "") {
 }
 
 var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
-var totalFilteredSitesCount = cmdbSiteRows.length;
-var totalPagesCount = Math.ceil(totalFilteredSitesCount / reqPageSize);
-if (totalPagesCount < 1) totalPagesCount = 1;
-if (reqPage > totalPagesCount) reqPage = totalPagesCount;
 
-var pageStartIndex = (reqPage - 1) * reqPageSize;
-var pageEndIndex = pageStartIndex + reqPageSize;
-var pagedCmdbSiteRows = cmdbSiteRows.slice(pageStartIndex, pageEndIndex);
-
-// Collect Paged FWA Site IDs for Server-Side Page-Level Alarm Pushdown Query
+// Collect All FWA Site IDs for Database Level IN Filtering (STRICT MURNI: site_id ONLY)
 var fwaSiteCodesList = [];
-for (var cs = 0; cs < pagedCmdbSiteRows.length; cs++) {
-    var cRow = pagedCmdbSiteRows[cs];
+for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
+    var cRow = cmdbSiteRows[cs];
     var sIdVal = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid'));
     if (sIdVal) fwaSiteCodesList.push("'" + sIdVal + "'");
 }
@@ -376,26 +373,6 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "WHERE (createtime >= '" + startISO + "' AND createtime <= '" + endISO + "') " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
-
-// Collect ALL FWA Site IDs for Network-Wide Global KPI Cards
-var globalFwaSiteCodesList = [];
-for (var acs = 0; acs < cmdbSiteRows.length; acs++) {
-    var acRow = cmdbSiteRows[acs];
-    var asIdVal = extractOWSField(getPropIC(acRow, 'site_id') || getPropIC(acRow, 'siteid'));
-    if (asIdVal) globalFwaSiteCodesList.push("'" + asIdVal + "'");
-}
-
-var globalSiteInClause = globalFwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + globalFwaSiteCodesList.join(",") + ")") : " AND sitecode IN ('__NO_MATCHING_SITES__')";
-var globalLiveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + globalSiteInClause;
-var globalLiveRows = queryByTql(globalLiveTql, {}, 5000);
-
-var globalTotalAlarmsDown = globalLiveRows.length;
-var globalAffectedSitesMap = {};
-for (var gl = 0; gl < globalLiveRows.length; gl++) {
-    var glCode = extractOWSField(getPropIC(globalLiveRows[gl], 'sitecode') || getPropIC(globalLiveRows[gl], 'site_code') || getPropIC(globalLiveRows[gl], 'site_id') || getPropIC(globalLiveRows[gl], 'siteid'));
-    if (glCode) globalAffectedSitesMap[glCode] = true;
-}
-var globalSitesAffectedCount = Object.keys(globalAffectedSitesMap).length;
 
 var liveRows = queryByTql(liveTql, {}, 5000);
 var historyRows = queryByTql(historyTql, {}, 5000);
@@ -542,9 +519,9 @@ var siteIntervalMap = {};
 var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
 var totalAlarmCountAccumulated = 0;
 
-// 1. PRE-POPULATE MASTER SITES FROM PAGED CMDB SITES (pagedCmdbSiteRows)
-for (var cs = 0; cs < pagedCmdbSiteRows.length; cs++) {
-    var cRow = pagedCmdbSiteRows[cs];
+// 1. PRE-POPULATE MASTER SITES FROM CMDB SITES (cmdbSiteRows)
+for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
+    var cRow = cmdbSiteRows[cs];
     var cSiteName = extractOWSField(getPropIC(cRow, 'site_name') || getPropIC(cRow, 'sitename') || getPropIC(cRow, 'name') || getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid') || getPropIC(cRow, 'site_code') || getPropIC(cRow, 'sitecode'));
     if (!cSiteName) continue;
 
@@ -832,11 +809,7 @@ sitesList.sort(function (a, b) {
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
 
-var totalNetworkSites = totalFilteredSitesCount > 0 ? totalFilteredSitesCount : sitesList.length;
-var unaffectedSitesCount = totalNetworkSites - sitesList.length;
-if (unaffectedSitesCount < 0) unaffectedSitesCount = 0;
-var networkTotalAvailSum = (unaffectedSitesCount * 100.0) + totalAvailRateSum;
-var globalAvgAvailabilityPct = totalNetworkSites > 0 ? (networkTotalAvailSum / totalNetworkSites).toFixed(1) : "100.0";
+var globalAvgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
 
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
@@ -850,14 +823,14 @@ return {
             endDate: endISO.substring(0, 10)
         },
         summary: {
-            totalAlarmsDown: globalTotalAlarmsDown,
-            sitesAffected: globalSitesAffectedCount,
+            totalAlarmsDown: totalAlarmCountAccumulated,
+            sitesAffected: affectedSitesCount,
             avgAvailabilityPct: globalAvgAvailabilityPct,
             mostAffectedSite: mostAffectedSiteName,
             mostAffectedSiteDowntime: mostAffectedSiteDowntime,
             _debugMatchStats: {
-                rawLiveFetched: globalLiveRows.length,
-                matchedLiveAlarms: globalTotalAlarmsDown
+                rawLiveFetched: liveRows.length,
+                matchedLiveAlarms: totalAlarmCountAccumulated
             }
         },
         pagination: {
