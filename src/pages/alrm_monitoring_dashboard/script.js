@@ -525,15 +525,14 @@ function renderTable() {
     }
 
     var pag = DashboardState.pagination;
-    var totalItems = list.length;
-    var totalPages = Math.ceil(totalItems / pag.pageSize) || 1;
+    var totalItems = pag.totalSites || list.length;
+    var totalPages = pag.totalPages || (Math.ceil(totalItems / pag.pageSize) || 1);
 
     if (pag.currentPage > totalPages) pag.currentPage = totalPages;
     if (pag.currentPage < 1) pag.currentPage = 1;
 
     var startIdx = (pag.currentPage - 1) * pag.pageSize;
-    var endIdx = Math.min(startIdx + pag.pageSize, totalItems);
-    var pageItems = list.slice(startIdx, endIdx);
+    var pageItems = list;
 
     var html = '' +
         '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #27272a; background: #18181b;">' +
@@ -550,7 +549,7 @@ function renderTable() {
         for (var g = 0; g < pageItems.length; g++) {
             var gSite = pageItems[g];
             var gPct = gSite.availRatePct || "100.0";
-            var gGlobalIndex = startIdx + g;
+            var gGlobalIndex = g;
             var gVendor = gSite.vendorLabel || '-';
             var gRegion = gSite.regionLabel || '-';
 
@@ -620,7 +619,7 @@ function renderTable() {
                 pctColor = '#f59e0b'; // Kuning (60 - 80%)
             }
             var rowNo = startIdx + i + 1;
-            var globalIndex = startIdx + i;
+            var globalIndex = i;
             var vLabel = site.vendorLabel || '-';
             var rLabel = site.regionLabel || '-';
             var sId = site.siteId || '-';
