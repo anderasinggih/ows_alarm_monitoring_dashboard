@@ -214,6 +214,8 @@ var reqPageSize = parseInt(extractOWSField(reqParams.pageSize || '50'), 10);
 if (isNaN(reqPage) || reqPage < 1) reqPage = 1;
 if (isNaN(reqPageSize) || reqPageSize < 1) reqPageSize = 50;
 
+var WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 var nowObj = new Date();
 var nowMs = nowObj.getTime();
 
