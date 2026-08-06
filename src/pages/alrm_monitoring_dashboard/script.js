@@ -1,4 +1,3 @@
-if (typeof JSON !== 'undefined' && JSON.parse) { var _origParse = JSON.parse; JSON.parse = function(s, r) { if (!s) return null; try { return _origParse(s, r); } catch (e) { return null; } }; }
 /**
  * Huawei OWS Alarm Monitoring Dashboard - Pure UI Presenter (script.js)
  */
