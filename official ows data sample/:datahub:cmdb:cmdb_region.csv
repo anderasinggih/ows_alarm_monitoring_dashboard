@@ -1,0 +1,18 @@
+﻿ come_from, logical_id, region_level, region_manager, region_name, longitude_number, latitude_number, region_manager_phone, id, keycode, actual_model_id, active, change_time
+ , , , , Central Java, , , , 1ac88c88-0300-11f1-bdcd-0255ac121084, Central Java, , true,	 1770343440943
+ , , , , Bali, , , , 1db056bb-3264-11f1-83a3-0255ac120077, Bali, , true,	 1775554100141
+ , , , , East Java, , , , 25426cff-f362-11f0-8722-0255ac1208c5, East Java, , true,	 1768626330594
+ , , , Banten, Banten, , , , 28c4b082-0303-11f1-b97b-0255ac120084, Banten, , true,	 1770344752896
+ , , , , D.I Yogyakarta, , , , 2d1992c8-0300-11f1-8f47-0255ac121dc0, D.I Yogyakarta, , true,	 1770343471673
+ , , , , test, , , , 2d9a0847-1c65-11f1-b470-0255ac120236, test, , false,	 1773135669542
+ , , , , Kalimantan, , , , 2db8ec12-4e80-11f1-831a-0255ac12100e, Kalimantan, , true,	 1778644785507
+ , , , , West Java, , , , 2df57184-f362-11f0-82f8-0255ac12021f, West Java, , true,	 1768626345189
+ , , , , JABODETABEK, , , , 36a8e685-2cb4-11f1-9407-0255ac120942, JABODETABEK, , true,	 1774928794797
+ , , , , DKI Jakarta, , , , 3b2cf079-0300-11f1-b470-0255ac120236, DKI Jakarta, , false,	 1773823704627
+ , , , , DKI JAKARTA, , , , 634ac5ad-e61d-11f0-89c1-0255ac120225, DKI JAKARTA, , true,	 1767167434277
+ , , , , R4(EJ), , , , e12fa4d9-f34e-11f0-9ab3-0255ac1205b4, R4(EJ), , false,	 1773823583630
+ , , , , R2(WJ), , , , e581c14e-f34e-11f0-88b0-0255ac1218e7, R2(WJ), , false,	 1773823499131
+ , , , , R1(Jabo), , , , ea8a0e74-f34e-11f0-8acc-0255ac121003, R1(Jabo), , false,	 1773823493774
+ , , , , East, , , , f1912a87-58ea-11f1-8fdf-0255ac12109b, East, , true,	 1779790152361
+ , , , , Maluku, , , , f5bd09e2-1c64-11f1-b289-0255ac12100b, Maluku, , true,	 1773135537031
+ , , , , Papua, , , , fc9a8b88-1c64-11f1-8d56-0255ac121935, Papua, , true,	 1773135548549

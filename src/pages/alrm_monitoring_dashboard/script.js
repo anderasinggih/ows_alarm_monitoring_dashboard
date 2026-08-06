@@ -7,23 +7,7 @@
  * - Robust Lifecycle Initialization
  */
 
-// Safe JSON.parse Wrapper di baris pertama (Strict Rule)
-(function () {
-    if (typeof JSON !== 'undefined' && JSON.parse) {
-        var _nativeJSONParse = JSON.parse;
-        JSON.parse = function (text, reviver) {
-            if (text === undefined || text === null || text === 'undefined' || text === '') {
-                return null;
-            }
-            try {
-                return _nativeJSONParse.call(JSON, text, reviver);
-            } catch (e) {
-                console.warn('[OWS Safe JSON.parse] Prevented crash on invalid JSON input:', text);
-                return null;
-            }
-        };
-    }
-})();
+
 
 // OWS Service Endpoint Path
 var SERVICE_ENDPOINT = "/adc-service/rest/v1/services/gde_dashboard/alarm_monitoring_dashboard/alarm_moni_alarmget";
@@ -53,14 +37,16 @@ function getDefaultDates() {
 function getTodayDates() {
     var now = new Date();
     var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    var endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     return {
         startDate: formatDateTimeLocal(startToday),
-        endDate: formatDateTimeLocal(now)
+        endDate: formatDateTimeLocal(endToday)
     };
 }
 
 var initialDates = getDefaultDates();
 
+// Global Dashboard State (Default Rows per Page = 50)
 // Global Dashboard State (Default Rows per Page = 50)
 var DashboardState = {
     loading: false,
@@ -70,6 +56,8 @@ var DashboardState = {
     allSites: [],
     filteredSites: [],
     searchQuery: '',
+    selectedRegion: '',
+    selectedVendor: '',
     searchDebounceTimeout: null,
     startDate: getTodayDates().startDate,
     endDate: getTodayDates().endDate,
@@ -87,20 +75,44 @@ var DashboardState = {
 };
 
 // Helper to calculate active date label
+// Helper to calculate active filter badges HTML
 function getActiveFilterLabel() {
+    var html = '';
+    
+    // 1. Date Range Badge
+    var dateLabel = '';
     if (DashboardState.isTodayMode) {
-        return "Active: Today (00:00 – Now)";
+        dateLabel = "Active: Today (00:00 – Now)";
+    } else if (DashboardState.isAllTimeMode) {
+        dateLabel = "Active: All Time (Live & History)";
+    } else if (DashboardState.startDate && DashboardState.endDate) {
+        dateLabel = "Active: " + DashboardState.startDate.replace("T", " ") + " – " + DashboardState.endDate.replace("T", " ");
+    } else {
+        dateLabel = "Active: Custom Range";
     }
-    if (DashboardState.isAllTimeMode) {
-        return "Active: All Time (Live & History)";
-    }
-    var s = DashboardState.startDate;
-    var e = DashboardState.endDate;
+    html += '<span class="custom-active-filter-badge">' + dateLabel + '</span>';
 
-    if (s && e) {
-        return "Active: " + s.replace("T", " ") + " – " + e.replace("T", " ");
+    // 2. Region Badge
+    if (DashboardState.selectedRegion) {
+        html += '<span class="custom-active-filter-badge">Region: ' + DashboardState.selectedRegion + '</span>';
     }
-    return "Active: Custom Range";
+
+    // 3. Vendor Badge
+    if (DashboardState.selectedVendor) {
+        html += '<span class="custom-active-filter-badge">Vendor: ' + DashboardState.selectedVendor + '</span>';
+    }
+
+    // 4. Search Query Badge
+    if (DashboardState.searchQuery) {
+        html += '<span class="custom-active-filter-badge">Search: "' + DashboardState.searchQuery + '"</span>';
+    }
+
+    return html;
+}
+
+function updateActiveBadge() {
+    var b = document.getElementById('customActiveFilterBadge');
+    if (b) b.innerHTML = getActiveFilterLabel();
 }
 
 // Inject Filter Card Panel & View Toggle Buttons via JS (Bypasses OWS HTML Sanitizer)
@@ -111,9 +123,9 @@ function renderFilterPanel() {
             '<div class="custom-filter-card">' +
             '  <div class="custom-filter-title-row">' +
             '    <div class="custom-filter-title">Date & Time Range Filter</div>' +
-            '    <div id="customActiveFilterBadge" class="custom-active-filter-badge">' + getActiveFilterLabel() + '</div>' +
+            '    <div id="customActiveFilterBadge" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">' + getActiveFilterLabel() + '</div>' +
             '  </div>' +
-            '  <div class="custom-filter-row">' +
+            '  <div class="custom-filter-row" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">' +
             '    <div class="custom-filter-group">' +
             '      <span class="custom-filter-label">Start Date & Time</span>' +
             '      <input type="datetime-local" id="customStartDateInput" class="custom-date-input" value="' + DashboardState.startDate + '" />' +
@@ -123,22 +135,29 @@ function renderFilterPanel() {
             '      <input type="datetime-local" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-actions">' +
-            '      <button id="customQuickTodayBtn" class="custom-btn-quick24" title="Quick Filter Today (00:00 - Now)">Today</button>' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
-            '      <button id="customResetDateBtn" class="custom-btn-reset">Reset (Today)</button>' +
+            '      <button id="customResetDateBtn" class="custom-btn-reset">Reset</button>' +
             '    </div>' +
-            '    <div class="custom-search-container">' +
-            '      <input type="text" id="customSearchInput" class="custom-search-input" placeholder="Search site name..." />' +
+            '    <div class="custom-filter-group">' +
+            '      <span class="custom-filter-label">Region</span>' +
+            '      <select id="customRegionSelect" class="custom-date-input" style="min-width: 130px; cursor: pointer;">' +
+            '        <option value="">All Regions</option>' +
+            '      </select>' +
+            '    </div>' +
+            '    <div class="custom-filter-group">' +
+            '      <span class="custom-filter-label">Vendor</span>' +
+            '      <select id="customVendorSelect" class="custom-date-input" style="min-width: 130px; cursor: pointer;">' +
+            '        <option value="">All Vendors</option>' +
+            '      </select>' +
+            '    </div>' +
+            '    <div class="custom-search-container" style="flex: 1; min-width: 180px;">' +
+            '      <span class="custom-filter-label">Search Site</span>' +
+            '      <input type="text" id="customSearchInput" class="custom-search-input" placeholder="Search site name or site ID..." />' +
             '    </div>' +
             '  </div>' +
             '</div>';
 
         filterPlaceholder.innerHTML = html;
-
-        function updateActiveBadge() {
-            var b = document.getElementById('customActiveFilterBadge');
-            if (b) b.innerText = getActiveFilterLabel();
-        }
 
         var applyBtn = document.getElementById('customApplyDateBtn');
         if (applyBtn) {
@@ -162,26 +181,6 @@ function renderFilterPanel() {
             });
         }
 
-        var quickTodayBtn = document.getElementById('customQuickTodayBtn');
-        if (quickTodayBtn) {
-            quickTodayBtn.addEventListener('click', function () {
-                DashboardState.isAllTimeMode = false;
-                DashboardState.isTodayMode = true;
-                var qToday = getTodayDates();
-                DashboardState.startDate = qToday.startDate;
-                DashboardState.endDate = qToday.endDate;
-                DashboardState.pagination.currentPage = 1;
-
-                var sInput = document.getElementById('customStartDateInput');
-                var eInput = document.getElementById('customEndDateInput');
-                if (sInput) sInput.value = qToday.startDate;
-                if (eInput) eInput.value = qToday.endDate;
-
-                updateActiveBadge();
-                fetchDashboardData();
-            });
-        }
-
         var resetBtn = document.getElementById('customResetDateBtn');
         if (resetBtn) {
             resetBtn.addEventListener('click', function () {
@@ -191,6 +190,8 @@ function renderFilterPanel() {
                 DashboardState.startDate = qToday.startDate;
                 DashboardState.endDate = qToday.endDate;
                 DashboardState.searchQuery = '';
+                DashboardState.selectedRegion = '';
+                DashboardState.selectedVendor = '';
                 DashboardState.pagination.currentPage = 1;
 
                 var sInput = document.getElementById('customStartDateInput');
@@ -201,6 +202,32 @@ function renderFilterPanel() {
                 var searchInput = document.getElementById('customSearchInput');
                 if (searchInput) searchInput.value = '';
 
+                var regSelect = document.getElementById('customRegionSelect');
+                if (regSelect) regSelect.value = '';
+
+                var venSelect = document.getElementById('customVendorSelect');
+                if (venSelect) venSelect.value = '';
+
+                updateActiveBadge();
+                fetchDashboardData();
+            });
+        }
+
+        var regSelect = document.getElementById('customRegionSelect');
+        if (regSelect) {
+            regSelect.addEventListener('change', function (e) {
+                DashboardState.selectedRegion = e.target.value;
+                DashboardState.pagination.currentPage = 1;
+                updateActiveBadge();
+                fetchDashboardData();
+            });
+        }
+
+        var venSelect = document.getElementById('customVendorSelect');
+        if (venSelect) {
+            venSelect.addEventListener('change', function (e) {
+                DashboardState.selectedVendor = e.target.value;
+                DashboardState.pagination.currentPage = 1;
                 updateActiveBadge();
                 fetchDashboardData();
             });
@@ -214,8 +241,9 @@ function renderFilterPanel() {
                 DashboardState.searchDebounceTimeout = setTimeout(function () {
                     DashboardState.searchQuery = val;
                     DashboardState.pagination.currentPage = 1;
-                    applySearchFilter();
-                }, 300);
+                    updateActiveBadge();
+                    fetchDashboardData();
+                }, 300); // 300ms Debounce
             });
         }
     }
@@ -290,12 +318,21 @@ function fetchDashboardData() {
         serviceId: SERVICE_ENDPOINT,
         data: {
             startDate: DashboardState.startDate,
-            endDate: DashboardState.endDate
+            endDate: DashboardState.endDate,
+            region: DashboardState.selectedRegion || '',
+            vendor: DashboardState.selectedVendor || '',
+            searchQuery: DashboardState.searchQuery || ''
         },
         success: function (res) {
             try {
                 var resObj = typeof res === 'string' ? JSON.parse(res) : res;
                 var resultData = (resObj && resObj.result) || (resObj && resObj.data) || resObj;
+
+                if (resultData && resultData._performanceStatus) {
+                    console.log('⚡ PERFORMANCE CPU LOG:');
+                    console.log('Durasi Eksekusi Backend:', resultData._performanceStatus.executionDurationSec, '(' + resultData._performanceStatus.executionDurationMs + 'ms)');
+                    console.log('Status CPU:', resultData._performanceStatus.statusMessage);
+                }
 
                 if (resultData && resultData.summary) {
                     DashboardState.summary = resultData.summary;
@@ -308,10 +345,10 @@ function fetchDashboardData() {
                     }
 
                     DashboardState.allSites = fetchedSites;
-                    DashboardState.filteredSites = DashboardState.allSites;
+                    populateFilterDropdowns();
+                    applySearchFilter();
 
                     renderKPIStats();
-                    renderTable();
                 } else {
                     if (tableContainer) {
                         tableContainer.innerHTML = '<div style="color: #ef4444; padding: 24px; text-align: center;">Failed to load data. OWS payload empty.</div>';
@@ -330,7 +367,7 @@ function fetchDashboardData() {
     });
 }
 
-// Render KPI Stat Cards
+// Render KPI Stat Cards with Dynamic Color Thresholds directly from OWS Service Summary aggregation
 function renderKPIStats() {
     var statTotal = document.getElementById('statTotalAlarms');
     var statSites = document.getElementById('statSitesAffected');
@@ -338,31 +375,132 @@ function renderKPIStats() {
     var statMost = document.getElementById('statMostAffected');
     var statMostDt = document.getElementById('statMostAffectedDowntime');
 
-    if (statTotal) statTotal.innerText = DashboardState.summary.totalAlarmsDown || 0;
-    if (statSites) statSites.innerText = DashboardState.summary.sitesAffected || 0;
-    if (statAvail) statAvail.innerText = (DashboardState.summary.avgAvailabilityPct || "100.0") + "%";
-    if (statMost) statMost.innerText = DashboardState.summary.mostAffectedSite || "-";
+    var sitesToCalc = DashboardState.filteredSites || DashboardState.allSites || [];
+    var summary = DashboardState.summary || {};
+
+    var totalAlarms = 0;
+    var sitesAffected = 0;
+    var totalAvailRateSum = 0;
+    var maxDowntimeMs = -1;
+    var mostAffectedSiteName = "-";
+    var mostAffectedSiteDowntimeStr = "-";
+
+    for (var i = 0; i < sitesToCalc.length; i++) {
+        var s = sitesToCalc[i];
+        if (s.totalAlarms > 0) {
+            totalAlarms += s.totalAlarms;
+            sitesAffected += 1; // SITES AFFECTED: MURNI JUMLAH SITE AKTIF YANG ALARM-NYA MASIH DOWN / BELUM CLEAR!
+        }
+
+        var rate = parseFloat(s.availRatePct) || 100;
+        totalAvailRateSum += rate;
+
+        var dtMs = s.downtimeMs || 0;
+        if (dtMs > maxDowntimeMs) {
+            maxDowntimeMs = dtMs;
+            mostAffectedSiteName = s.siteName;
+            mostAffectedSiteDowntimeStr = s.downtimeFormatted || "0m";
+        }
+    }
+
+    var avgAvailPctStr = sitesToCalc.length > 0 ? (totalAvailRateSum / sitesToCalc.length).toFixed(1) : "100.0";
+
+    // Dynamic Filter Override for Cards
+    if (statTotal) statTotal.innerText = totalAlarms;
+    if (statSites) statSites.innerText = sitesAffected;
+    
+    if (statAvail) {
+        var valNum = parseFloat(avgAvailPctStr) || 100;
+        
+        // Dynamic Color Thresholds:
+        var kpiColor = '#10b981'; // Green for > 80%
+        if (valNum <= 40) {
+            kpiColor = '#ef4444'; // Merah (0 - 40%)
+        } else if (valNum <= 60) {
+            kpiColor = '#f97316'; // Oren (40 - 60%)
+        } else if (valNum <= 80) {
+            kpiColor = '#f59e0b'; // Kuning (60 - 80%)
+        }
+        
+        statAvail.innerText = avgAvailPctStr + "%";
+        statAvail.style.color = kpiColor;
+    }
+
+    if (statMost) statMost.innerText = mostAffectedSiteName;
     if (statMostDt) {
-        var dtVal = DashboardState.summary.mostAffectedSiteDowntime;
-        if (dtVal && dtVal !== "0m" && dtVal !== "0s" && DashboardState.summary.mostAffectedSite !== "-") {
-            statMostDt.innerText = dtVal + " down";
+        if (mostAffectedSiteDowntimeStr && mostAffectedSiteDowntimeStr !== "0m" && mostAffectedSiteDowntimeStr !== "0s" && mostAffectedSiteName !== "-") {
+            statMostDt.innerText = mostAffectedSiteDowntimeStr + " down";
         } else {
             statMostDt.innerText = "-";
         }
     }
 }
 
-// Client-Side Search Filter
+// Populate Region & Vendor Filter Dropdowns dynamically from initial dataset
+function populateFilterDropdowns() {
+    var regSelect = document.getElementById('customRegionSelect');
+    var venSelect = document.getElementById('customVendorSelect');
+    if (!regSelect || !venSelect) return;
+
+    // Preserve existing options list so selecting a filter does not wipe available options
+    if (regSelect.options.length > 1 && venSelect.options.length > 1) return;
+
+    var currentReg = DashboardState.selectedRegion;
+    var currentVen = DashboardState.selectedVendor;
+
+    var regions = {};
+    var vendors = {};
+
+    for (var i = 0; i < DashboardState.allSites.length; i++) {
+        var s = DashboardState.allSites[i];
+        if (s.regionLabel && s.regionLabel !== '-') regions[s.regionLabel] = true;
+        if (s.vendorLabel && s.vendorLabel !== '-') vendors[s.vendorLabel] = true;
+    }
+
+    var sortedRegions = Object.keys(regions).sort();
+    var sortedVendors = Object.keys(vendors).sort();
+
+    var regHtml = '<option value="">All Regions</option>';
+    for (var r = 0; r < sortedRegions.length; r++) {
+        var rVal = sortedRegions[r];
+        var rSel = rVal === currentReg ? 'selected' : '';
+        regHtml += '<option value="' + rVal + '" ' + rSel + '>' + rVal + '</option>';
+    }
+    regSelect.innerHTML = regHtml;
+
+    var venHtml = '<option value="">All Vendors</option>';
+    for (var v = 0; v < sortedVendors.length; v++) {
+        var vVal = sortedVendors[v];
+        var vSel = vVal === currentVen ? 'selected' : '';
+        venHtml += '<option value="' + vVal + '" ' + vSel + '>' + vVal + '</option>';
+    }
+    venSelect.innerHTML = venHtml;
+}
+
+// Dynamic Combined Filter (Region, Vendor, Search Site Name / Site ID)
 function applySearchFilter() {
     var q = (DashboardState.searchQuery || '').toLowerCase().trim();
-    if (!q) {
-        DashboardState.filteredSites = DashboardState.allSites;
-    } else {
-        DashboardState.filteredSites = DashboardState.allSites.filter(function (item) {
-            return (item.siteName || '').toLowerCase().indexOf(q) !== -1;
-        });
-    }
+    var reg = (DashboardState.selectedRegion || '').toLowerCase().trim();
+    var ven = (DashboardState.selectedVendor || '').toLowerCase().trim();
+
+    DashboardState.filteredSites = (DashboardState.allSites || []).filter(function (item) {
+        var matchesQuery = !q || 
+            (item.siteName || '').toLowerCase().indexOf(q) !== -1 || 
+            (item.siteId || '').toLowerCase().indexOf(q) !== -1;
+            
+        var itemRegLabel = (item.regionLabel || '').toLowerCase();
+        var itemRegId = (item.regionId || '').toLowerCase();
+        var matchesRegion = !reg || itemRegLabel === reg || itemRegId === reg || itemRegLabel.indexOf(reg) !== -1;
+
+        var itemVenLabel = (item.vendorLabel || '').toLowerCase();
+        var itemVenId = (item.vendorId || '').toLowerCase();
+        var matchesVendor = !ven || itemVenLabel === ven || itemVenId === ven || itemVenLabel.indexOf(ven) !== -1;
+
+        return matchesQuery && matchesRegion && matchesVendor;
+    });
+
     renderTable();
+    renderKPIStats();
 }
 
 // Render Table (Supports both List View & Grid View Modes)
@@ -416,17 +554,28 @@ function renderTable() {
             var gVendor = gSite.vendorLabel || '-';
             var gRegion = gSite.regionLabel || '-';
 
+            var gPctNum = parseFloat(gPct) || 100;
+            var gColor = '#10b981'; // Hijau (> 80%)
+            if (gPctNum <= 40) {
+                gColor = '#ef4444'; // Merah (0 - 40%)
+            } else if (gPctNum <= 60) {
+                gColor = '#f97316'; // Oren (40 - 60%)
+            } else if (gPctNum <= 80) {
+                gColor = '#f59e0b'; // Kuning (60 - 80%)
+            }
+
             html += '' +
                 '<div class="custom-site-grid-card custom-table-row" data-site-index="' + gGlobalIndex + '">' +
                 '  <div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
                 '    <div>' +
-                '      <div style="font-size: 16px; font-weight: 700; color: #f4f4f5;">' + gSite.siteName + '</div>' +
+                '      <div style="font-weight: 700; color: #f4f4f5; font-size: 15px;">' + gSite.siteName + '</div>' +
+                '      <div style="font-size: 11px; color: #38bdf8; font-weight: 600; font-family: monospace;">ID: ' + (gSite.siteId || '-') + '</div>' +
                 '      <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #a1a1aa;">' + gRegion + '</span> • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
                 '    </div>' +
-                '    <div style="font-size: 16px; font-weight: 700; color: #ffffff; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
+                '    <div style="font-size: 16px; font-weight: 700; color: ' + gColor + '; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
                 '  </div>' +
                 '  <div style="margin-top: 14px;">' +
-                '    <div class="custom-avail-bar-wrapper"><div class="custom-avail-bar-inner" style="width: ' + gPct + '%;"></div></div>' +
+                '    <div class="custom-avail-bar-wrapper"><div class="custom-avail-bar-inner" style="width: ' + gPct + '%; background-color: ' + gColor + ';"></div></div>' +
                 '  </div>' +
                 '  <div style="display: flex; justify-content: space-between; margin-top: 14px; font-size: 12px;">' +
                 '    <div><span style="color: #a1a1aa;">Down:</span> <b style="color: #ef4444;">' + (gSite.downtimeFormatted || '0m') + '</b></div>' +
@@ -446,6 +595,7 @@ function renderTable() {
             '    <tr>' +
             '      <th style="width: 50px; text-align: center;">NO</th>' +
             '      <th>SITE NAME</th>' +
+            '      <th>SITE ID</th>' +
             '      <th>REGION</th>' +
             '      <th>VENDOR</th>' +
             '      <th>DOWNTIME' + periodSuffix + '</th>' +
@@ -458,11 +608,22 @@ function renderTable() {
 
         for (var i = 0; i < pageItems.length; i++) {
             var site = pageItems[i];
+
             var pct = site.availRatePct || "100.0";
+            var pctNum = parseFloat(pct) || 100;
+            var pctColor = '#10b981'; // Hijau (> 80%)
+            if (pctNum <= 40) {
+                pctColor = '#ef4444'; // Merah (0 - 40%)
+            } else if (pctNum <= 60) {
+                pctColor = '#f97316'; // Oren (40 - 60%)
+            } else if (pctNum <= 80) {
+                pctColor = '#f59e0b'; // Kuning (60 - 80%)
+            }
             var rowNo = startIdx + i + 1;
             var globalIndex = startIdx + i;
             var vLabel = site.vendorLabel || '-';
             var rLabel = site.regionLabel || '-';
+            var sId = site.siteId || '-';
 
             html += '' +
                 '<tr class="custom-table-row" data-site-index="' + globalIndex + '" style="cursor: pointer;">' +
@@ -471,11 +632,12 @@ function renderTable() {
                 '    <div style="font-weight: 600; color: #f4f4f5;">' + site.siteName + '</div>' +
                 '    <div style="font-size: 11px; color: #a1a1aa;">' + (site.totalAlarms || 0) + ' alarms</div>' +
                 '  </td>' +
+                '  <td><span style="font-family: monospace; color: #38bdf8; font-weight: 600; font-size: 12px; background: #0f172a; padding: 2px 6px; border-radius: 4px; border: 1px solid #1e293b;">' + sId + '</span></td>' +
                 '  <td style="color: #e4e4e7; font-weight: 500; font-size: 12px;">' + rLabel + '</td>' +
                 '  <td><span style="background: #1e293b; color: #60a5fa; border: 1px solid #3b82f6; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + vLabel + '</span></td>' +
-                '  <td style="color: #ef4444; font-weight: 600;">' + (site.downtimeFormatted || '0m') + '</td>' +
+                '  <td style="color: ' + (site.isDown ? '#ef4444' : '#71717a') + '; font-weight: 600;">' + (site.downtimeFormatted || '0m') + '</td>' +
                 '  <td style="color: #10b981; font-weight: 600;">' + (site.availableFormatted || '0m') + '</td>' +
-                '  <td style="font-weight: 600; color: #f4f4f5;">' + pct + '%</td>' +
+                '  <td style="font-weight: 700; color: ' + pctColor + ';">' + pct + '%</td>' +
                 '  <td style="color: #a1a1aa;">' + (site.lastOccurrenceStr || '-') + '</td>' +
                 '</tr>';
         }
@@ -571,6 +733,7 @@ function openSiteDetailModal(siteData) {
     if (!modalContainer) return;
 
     var alarmsList = siteData.alarms || [];
+    var ticketsList = siteData.tickets || [];
 
     var modalHtml = '' +
         '<div class="custom-modal-dialog" data-site-name="' + siteData.siteName + '">' +
@@ -631,8 +794,53 @@ function openSiteDetailModal(siteData) {
     modalHtml += '' +
         '      </tbody>' +
         '    </table>' +
-        '  </div>' +
-        '' +
+        '  </div>';
+
+    // Related Tickets container
+    modalHtml += '<div class="custom-modal-tickets-section">';
+    modalHtml += '<div class="custom-modal-tickets-title">RELATED TICKETS <span class="custom-modal-tickets-count">' + ticketsList.length + '</span></div>';
+
+    if (ticketsList.length === 0) {
+        modalHtml += '<div class="custom-modal-tickets-empty">No related tickets available for this site.</div>';
+    } else {
+        for (var tk = 0; tk < ticketsList.length; tk++) {
+            var ticket = ticketsList[tk];
+            var bsColor = '#71717a';
+            var bsBg = '#27272a';
+            var bsBorder = '#3f3f46';
+            var bsLabel = ticket.businessstatusLabel || '-';
+            if (bsLabel === 'Resolved' || bsLabel === 'Closed') { bsColor = '#4ade80'; bsBg = '#052e16'; bsBorder = '#16a34a'; }
+            else if (bsLabel === 'In Progress' || bsLabel === 'WIP' || bsLabel === 'In Process') { bsColor = '#60a5fa'; bsBg = '#172554'; bsBorder = '#2563eb'; }
+            else if (bsLabel === 'New' || bsLabel === 'Initialized') { bsColor = '#fb923c'; bsBg = '#431407'; bsBorder = '#ea580c'; }
+
+            var ticketLinkHtml = ticket.ticketUrl ?
+                '<a href="' + ticket.ticketUrl + '" target="_blank" class="custom-modal-ticket-id" style="text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Open Trouble Ticket in OWS">' +
+                '  <span>' + ticket.ticketId + '</span>' +
+                '  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>' +
+                '</a>' :
+                '<span class="custom-modal-ticket-id">' + ticket.ticketId + '</span>';
+
+            modalHtml += '' +
+                '<div class="custom-modal-ticket-card">' +
+                '  <div class="custom-modal-ticket-row">' +
+                '    ' + ticketLinkHtml +
+                '    <span class="custom-modal-ticket-status" style="color:' + bsColor + ';background:' + bsBg + ';border:1px solid ' + bsBorder + ';">' + bsLabel + '</span>' +
+                '  </div>' +
+                '  <div class="custom-modal-ticket-row custom-modal-ticket-meta">' +
+                '    <span>Created: ' + ticket.createtimeStr + '</span>' +
+                '  </div>' +
+                '  <div class="custom-modal-ticket-row custom-modal-ticket-rc">' +
+                '    <span class="custom-modal-ticket-rc-label">Root Cause:</span>' +
+                '    <span class="custom-modal-ticket-rc-val">' + ticket.rootCause + '</span>' +
+                '    <span class="custom-modal-ticket-rc-label" style="margin-left:12px;">Sub RC:</span>' +
+                '    <span class="custom-modal-ticket-rc-val">' + ticket.subRootCause + '</span>' +
+                '  </div>' +
+                '</div>';
+        }
+    }
+    modalHtml += '</div>';
+
+    modalHtml += '' +
         '  <div class="custom-modal-footer">' +
         '    <div>Showing ' + alarmsList.length + ' of ' + alarmsList.length + ' alarms</div>' +
         '    <button id="customCloseModalBtnBottom" class="custom-btn-reset">Close</button>' +
@@ -640,7 +848,7 @@ function openSiteDetailModal(siteData) {
         '</div>';
 
     modalContainer.innerHTML = modalHtml;
-    modalContainer.style.display = 'flex';
+    modalContainer.style.setProperty('display', 'flex', 'important');
     modalContainer.style.position = 'fixed';
     modalContainer.style.top = '0';
     modalContainer.style.left = '0';
@@ -655,7 +863,7 @@ function openSiteDetailModal(siteData) {
     var closeBtnBottom = document.getElementById('customCloseModalBtnBottom');
 
     function closeModal() {
-        modalContainer.style.display = 'none';
+        modalContainer.style.setProperty('display', 'none', 'important');
         modalContainer.innerHTML = '';
     }
 
@@ -670,135 +878,8 @@ function openSiteDetailModal(siteData) {
 var liveTickerInterval = null;
 
 function startLiveTicker() {
+    // Live ticking dimatikan - semua angka statis dari data refresh
     if (liveTickerInterval) clearInterval(liveTickerInterval);
-
-    liveTickerInterval = setInterval(function () {
-        if (!DashboardState.allSites || DashboardState.allSites.length === 0) return;
-
-        // Calculate Window Duration for Today / Custom Mode
-        var now = new Date();
-        var windowCapMs = (24 * 60 * 60 * 1000);
-
-        if (DashboardState.isTodayMode) {
-            var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-            windowCapMs = now.getTime() - todayStart.getTime();
-            if (windowCapMs <= 0) windowCapMs = 1000;
-        } else if (DashboardState.startDate && DashboardState.endDate) {
-            var dS = new Date(DashboardState.startDate.indexOf('T') !== -1 ? DashboardState.startDate : DashboardState.startDate + 'T00:00:00');
-            var dE = new Date(DashboardState.endDate.indexOf('T') !== -1 ? DashboardState.endDate : DashboardState.endDate + 'T23:59:59');
-            if (!isNaN(dS.getTime()) && !isNaN(dE.getTime())) {
-                windowCapMs = dE.getTime() - dS.getTime();
-                if (windowCapMs <= 0) windowCapMs = 1000;
-            }
-        }
-
-        // 1. Ticker for All Sites Data Model
-        for (var s = 0; s < DashboardState.allSites.length; s++) {
-            var st = DashboardState.allSites[s];
-            if (!st) continue;
-
-            var hasActiveAlarm = false;
-            if (st.alarms && st.alarms.length > 0) {
-                for (var a = 0; a < st.alarms.length; a++) {
-                    if (st.alarms[a].clearStr === 'Active (Now)') {
-                        hasActiveAlarm = true;
-                        break;
-                    }
-                }
-            }
-
-            if (hasActiveAlarm) {
-                st.downtimeMs = (st.downtimeMs || 0) + 1000;
-                if (st.downtimeMs > windowCapMs) {
-                    st.downtimeMs = windowCapMs;
-                }
-            }
-
-            // Downtime duration strictly from OWS backend model + 1s increment while session active
-            var dtMs = st.downtimeMs || 0;
-            var dtSeconds = Math.floor(dtMs / 1000);
-            var dtH = Math.floor(dtSeconds / 3600);
-            var dtM = Math.floor((dtSeconds % 3600) / 60);
-            var dtS = dtSeconds % 60;
-
-            var dtStr = "";
-            if (dtH > 0) dtStr = dtH + "h " + dtM + "m " + dtS + "s";
-            else if (dtM > 0) dtStr = dtM + "m " + dtS + "s";
-            else dtStr = dtS + "s";
-
-            st.downtimeFormatted = dtStr;
-
-            // Available time strictly derived from (Window - Downtime)
-            var availMs = windowCapMs - dtMs;
-            if (availMs < 0) availMs = 0;
-
-            var avSeconds = Math.floor(availMs / 1000);
-            var avH = Math.floor(avSeconds / 3600);
-            var avM = Math.floor((avSeconds % 3600) / 60);
-            var avS = avSeconds % 60;
-
-            var avStr = "";
-            if (avH > 0) avStr = avH + "h " + avM + "m " + avS + "s";
-            else if (avM > 0) avStr = avM + "m " + avS + "s";
-            else avStr = avS + "s";
-
-            st.availableFormatted = avStr;
-            st.availRatePct = ((availMs / windowCapMs) * 100).toFixed(1);
-
-            // Update Most Affected Site Card subtitle immediately
-            if (hasActiveAlarm && DashboardState.summary && DashboardState.summary.mostAffectedSite === st.siteName) {
-                DashboardState.summary.mostAffectedSiteDowntime = dtStr;
-                var statMostDt = document.getElementById('statMostAffectedDowntime');
-                if (statMostDt) {
-                    statMostDt.innerText = dtStr + " down";
-                }
-            }
-
-            // Update Site Detail Modal metrics & alarm table if open for this site
-            var modalDialog = document.querySelector('.custom-modal-dialog');
-            if (modalDialog && modalDialog.getAttribute('data-site-name') === st.siteName) {
-                var mDt = document.getElementById('customModalDowntime');
-                var mAv = document.getElementById('customModalAvailable');
-                var mPct = document.getElementById('customModalAvailRate');
-
-                if (mDt) mDt.innerText = dtStr;
-                if (mAv) mAv.innerText = avStr;
-                if (mPct) mPct.innerText = st.availRatePct + "%";
-
-                // Update active alarm duration in modal table
-                var activeAlarmDurCells = modalDialog.querySelectorAll('.custom-modal-active-duration');
-                activeAlarmDurCells.forEach(function (cell) {
-                    var occMs = parseInt(cell.getAttribute('data-occur-ms'), 10);
-                    if (!isNaN(occMs) && occMs > 0) {
-                        var durMs = now.getTime() - occMs;
-                        if (durMs < 0) durMs = 0;
-                        cell.innerText = formatDuration(durMs);
-                    }
-                });
-            }
-        }
-
-        // 2. Update Visible DOM Table Rows
-        var rows = document.querySelectorAll('.custom-table-row');
-        if (!rows || rows.length === 0) return;
-
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-            var gIdxStr = row.getAttribute('data-site-index');
-            if (gIdxStr === null || gIdxStr === undefined) continue;
-            var gIdx = parseInt(gIdxStr, 10);
-            var visibleSite = DashboardState.filteredSites[gIdx];
-
-            if (visibleSite) {
-                var cells = row.querySelectorAll('td');
-                if (cells && cells.length >= 7) {
-                    cells[4].innerText = visibleSite.downtimeFormatted || '0s';
-                    cells[5].innerText = visibleSite.availableFormatted || '0s';
-                    cells[6].innerText = (visibleSite.availRatePct || '100.0') + "%";
-                }
-            }
-        }
-    }, 1000);
 }
 
 // ROBUST LIFECYCLE INITIALIZER FOR OWS RUN & PREVIEWER MODE
@@ -817,12 +898,12 @@ function startLiveTicker() {
         tryInit();
     }
 
-    // Auto-refresh data from OWS server every 30 seconds
+    // Auto-refresh data dari OWS server setiap 5 menit
     setInterval(function () {
         if (!DashboardState.loading) {
             fetchDashboardData();
         }
-    }, 30000);
+    }, 300000);
 
     // Fallback retries for OWS iframe delay in RUN Mode
     setTimeout(tryInit, 50);

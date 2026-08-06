@@ -1,0 +1,18 @@
+﻿ label, access_type_name, description, id, keycode, actual_model_id, active, change_time
+ 5G, 5G, , 896f2d75-e61d-11f0-b658-0255ac120078, 5G, , true,	 1767167498269
+ Core, Core, , 9bf30590-16db-11f1-be90-0255ac120057, Core, , true,	 1772526789524
+ FWA, FWA, Fixed Wireless Access, ce1d6700-f34d-11f0-80d8-0255ac12193b, FWA, , true,	 1768617594455
+ 2G, 2G, , e4836c5d-e165-11f0-9154-0255ac12083b, 2G, , false,	 1772526838717
+ 2G 3G, 2G 3G, , e4854124-e165-11f0-9154-0255ac12083b, 2G 3G, , false,	 1772526838717
+ 3G, 3G, , e486a0ba-e165-11f0-9154-0255ac12083b, 3G, , false,	 1772526838717
+ 4G, 4G, , e487d949-e165-11f0-9154-0255ac12083b, 4G, , false,	 1772526838717
+ Auxiliary, Auxiliary, , e48911ca-e165-11f0-9154-0255ac12083b, Auxiliary, , false,	 1772526838717
+ CS, CS, , e48a2344-e165-11f0-9154-0255ac12083b, CS, , false,	 1772526838717
+ Moto, Moto, , e48b34b7-e165-11f0-9154-0255ac12083b, Moto, , false,	 1772526838717
+ PS, PS, , e48c462d-e165-11f0-9154-0255ac12083b, PS, , false,	 1772526852462
+ TX, TX, , e48d3096-e165-11f0-9154-0255ac12083b, TX, , true,	 1766648819089
+ Unknown, Unknown, , e48eb73d-e165-11f0-9154-0255ac12083b, Unknown, , true,	 1766648819099
+ VAS, VAS, , e48fa1a3-e165-11f0-9154-0255ac12083b, VAS, , false,	 1772526852462
+ DWDM, DWDM, , f56fcdc6-16db-11f1-b289-0255ac12100b, DWDM, , true,	 1772526939659
+ MPLS, MPLS, , f8bbc496-16db-11f1-b3b6-0255ac120212, MPLS, , true,	 1772526945190
+ FTTH, FTTH, , fd022119-16db-11f1-8caf-0255ac1211f5, FTTH, , true,	 1772526952362

@@ -10,3 +10,11 @@
 /datahub/cmdb/cmdb_vendor
 
 /TroubleTicket/TroubleTicket/tt_troubleticket
+
+/Bpm/msup_options/msup_options_businessstatus
+
+/datahub/cmdb/cmdb_site_access_type
+
+/datahub/cmdb/cmdb_site_stage
+
+/datahub/cmdb/cmdb_region
