@@ -325,11 +325,7 @@ function fetchDashboardData() {
                 var resObj = res;
                 var resultData = (resObj && resObj.result) || (resObj && resObj.data) || resObj;
 
-                if (resultData && resultData._performanceStatus) {
-                    console.log('⚡ PERFORMANCE CPU LOG:');
-                    console.log('Durasi Eksekusi Backend:', resultData._performanceStatus.executionDurationSec, '(' + resultData._performanceStatus.executionDurationMs + 'ms)');
-                    console.log('Status CPU:', resultData._performanceStatus.statusMessage);
-                }
+
 
                 if (resultData && resultData.pagination) {
                     DashboardState.pagination.currentPage = resultData.pagination.currentPage || 1;
