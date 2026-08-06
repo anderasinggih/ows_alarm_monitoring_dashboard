@@ -322,7 +322,7 @@ function fetchDashboardData() {
         },
         success: function (res) {
             try {
-                var resObj = typeof res === 'string' ? JSON.parse(res) : res;
+                var resObj = res;
                 var resultData = (resObj && resObj.result) || (resObj && resObj.data) || resObj;
 
                 if (resultData && resultData._performanceStatus) {
