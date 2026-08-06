@@ -364,8 +364,8 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
-    "WHERE (firstinserttime <= " + windowEndMs + ") " +
-    "AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL) " +
+    "WHERE ((firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL)) " +
+    "OR (firstinserttime <= '" + endISO + "' AND (cleartime >= '" + startISO + "' OR cleartime = '0' OR cleartime IS NULL))) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
@@ -373,8 +373,8 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
-var liveRows = queryByTql(liveTql, {}, 10000);
-var historyRows = queryByTql(historyTql, {}, 20000);
+var liveRows = queryByTql(liveTql, {}, 5000);
+var historyRows = queryByTql(historyTql, {}, 5000);
 var ttRows = queryByTql(ttTql, {}, 1000);
 var bsRows = queryByTql(bsTql, {}, 200);
 
@@ -638,9 +638,8 @@ for (var l = 0; l < liveRows.length; l++) {
         alarmName: alarmNameL,
         occurMs: startL,
         clearMs: endL,
-        occurStr: formatTimeOnly(startL),
-        clearStr: 'Active (Now)',
-        durationFormatted: formatDuration(endL - effStartL)
+        effStart: effStartL,
+        isHistoryCleared: false
     });
 }
 
@@ -667,15 +666,13 @@ for (var h = 0; h < historyRows.length; h++) {
                 siteIntervalMap[targetSiteKeyH].firstOccurMs = startH;
             }
 
-            // totalAlarms MURNI HANYA DI-INCREMENT OLEH LIVE ALARMS (BELUM CLEAR)
             siteIntervalMap[targetSiteKeyH].intervals.push({ start: effStart, end: effEnd });
             siteIntervalMap[targetSiteKeyH].alarms.push({
                 alarmName: alarmNameH,
                 occurMs: startH,
                 clearMs: endH,
-                occurStr: formatTimeOnly(startH),
-                clearStr: isHistoryCleared ? formatTimeOnly(rawClearH) : 'Active (Now)',
-                durationFormatted: formatDuration(effEnd - effStart)
+                effStart: effStart,
+                isHistoryCleared: isHistoryCleared
             });
         }
     }
@@ -759,6 +756,25 @@ for (var sKey in siteIntervalMap) {
         lastOccStr = formatTimeOnly(latestOccurMs);
     }
 
+    var formattedAlarms = [];
+    for (var fa = 0; fa < item.alarms.length; fa++) {
+        var rawAlm = item.alarms[fa];
+        var isLiveActive = !rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0);
+        var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
+        var almEffEnd = rawAlm.clearMs || windowEndMs;
+        var durMs = almEffEnd - almEffStart;
+        if (durMs < 0) durMs = 0;
+
+        formattedAlarms.push({
+            alarmName: rawAlm.alarmName,
+            occurMs: rawAlm.occurMs,
+            clearMs: rawAlm.clearMs,
+            occurStr: formatTimeOnly(rawAlm.occurMs),
+            clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
+            durationFormatted: formatDuration(durMs)
+        });
+    }
+
     sitesList.push({
         siteName: item.siteName,
         siteId: item.siteId || '-',
@@ -776,7 +792,7 @@ for (var sKey in siteIntervalMap) {
         isDown: item.totalAlarms > 0,
         isCurrentlyDown: item.totalAlarms > 0,
         hasHistoricalDowntime: totalDowntimeMergedMs > 0,
-        alarms: item.alarms, // Detail daftar alarm per site untuk drilldown modal
+        alarms: formattedAlarms, // Detail daftar alarm per site yang sudah diformat lazily
         tickets: totalDowntimeMergedMs > 0 ? getSiteTickets(item.siteName, item.firstOccurMs || 0) : []
     });
 }
