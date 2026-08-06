@@ -326,20 +326,22 @@ var siteTql = "SELECT * FROM \"/datahub/cmdb/cmdb_site\" " +
     "AND site_stage = 'f343d1fb-e165-11f0-90da-0255ac121938'";
 
 if (selectedVendorStr !== "") {
+    var cleanVen = selectedVendorStr.replace(/'/g, "''");
     var matchingVendorIds = vendorNameToIdsMap[selectedVendorStr.toLowerCase()] || [];
     if (matchingVendorIds.length > 0) {
-        siteTql += " AND (vendor IN (" + matchingVendorIds.join(",") + ") OR vendor_id IN (" + matchingVendorIds.join(",") + ") OR vendor = '" + selectedVendorStr + "')";
+        siteTql += " AND (vendor IN (" + matchingVendorIds.join(",") + ") OR vendor_id IN (" + matchingVendorIds.join(",") + ") OR vendor = '" + cleanVen + "')";
     } else {
-        siteTql += " AND (vendor = '" + selectedVendorStr + "' OR vendor_id = '" + selectedVendorStr + "')";
+        siteTql += " AND (vendor = '" + cleanVen + "' OR vendor_id = '" + cleanVen + "')";
     }
 }
 
 if (selectedRegionStr !== "") {
+    var cleanReg = selectedRegionStr.replace(/'/g, "''");
     var matchingRegionIds = regionNameToIdsMap[selectedRegionStr.toLowerCase()] || [];
     if (matchingRegionIds.length > 0) {
-        siteTql += " AND (region_name IN (" + matchingRegionIds.join(",") + ") OR region IN (" + matchingRegionIds.join(",") + ") OR region_name = '" + selectedRegionStr + "')";
+        siteTql += " AND (region_name IN (" + matchingRegionIds.join(",") + ") OR region IN (" + matchingRegionIds.join(",") + ") OR region_name = '" + cleanReg + "')";
     } else {
-        siteTql += " AND (region_name = '" + selectedRegionStr + "' OR region = '" + selectedRegionStr + "')";
+        siteTql += " AND (region_name = '" + cleanReg + "' OR region = '" + cleanReg + "')";
     }
 }
 
