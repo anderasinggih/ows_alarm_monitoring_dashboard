@@ -93,7 +93,7 @@ function queryByTql(tql, parameters, customMaxLimit) {
     var allRows = [];
     var start = 0;
     var pageSize = 1000;
-    var maxRowsLimit = customMaxLimit || 5000; // Balanced limit (5000 records) to safely fit under OWS 500MB JS Memory quota
+    var maxRowsLimit = customMaxLimit || 25000; // Increased limit (25000 records) for full historical coverage without truncation
 
     try {
         while (start < maxRowsLimit) {
@@ -373,10 +373,10 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
-var liveRows = queryByTql(liveTql, {}, 5000);
-var historyRows = queryByTql(historyTql, {}, 5000);
-var ttRows = queryByTql(ttTql, {}, 1000);
-var bsRows = queryByTql(bsTql, {}, 200);
+var liveRows = queryByTql(liveTql, {}, 10000);
+var historyRows = queryByTql(historyTql, {}, 25000);
+var ttRows = queryByTql(ttTql, {}, 3000);
+var bsRows = queryByTql(bsTql, {}, 500);
 
 // Build Business Status Label Map (UUID -> optionlabel)
 var bsStatusMap = {};
