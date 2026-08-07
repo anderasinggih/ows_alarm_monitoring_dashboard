@@ -206,9 +206,9 @@ var selectedRegionStr = extractOWSField(reqParams.region);
 var selectedVendorStr = extractOWSField(reqParams.vendor);
 var searchQueryStr = extractOWSField(reqParams.searchQuery);
 var reqPage = parseInt(extractOWSField(reqParams.page || reqParams.currentPage || '1'), 10);
-var reqPageSize = parseInt(extractOWSField(reqParams.pageSize || '50'), 10);
+var reqPageSize = parseInt(extractOWSField(reqParams.pageSize || '20'), 10);
 if (isNaN(reqPage) || reqPage < 1) reqPage = 1;
-if (isNaN(reqPageSize) || reqPageSize < 1) reqPageSize = 50;
+if (isNaN(reqPageSize) || reqPageSize < 1) reqPageSize = 20;
 
 var WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -826,16 +826,14 @@ sitesList.sort(function (a, b) {
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
 
-// Slice sites for server-side pagination (default 20 sites per page)
-var defaultPageSize = 20;
-var pageSize = reqPageSize || defaultPageSize;
+// Server-side pagination: page & pageSize dikirim dari frontend sebagai input param
 var totalSites = sitesList.length;
-var totalPages = Math.ceil(totalSites / pageSize) || 1;
+var totalPages = Math.ceil(totalSites / reqPageSize) || 1;
 if (reqPage > totalPages) reqPage = totalPages;
 if (reqPage < 1) reqPage = 1;
 
-var startIndex = (reqPage - 1) * pageSize;
-var pagedSites = sitesList.slice(startIndex, startIndex + pageSize);
+var startIndex = (reqPage - 1) * reqPageSize;
+var pagedSites = sitesList.slice(startIndex, startIndex + reqPageSize);
 
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
@@ -858,7 +856,7 @@ return {
         },
         pagination: {
             currentPage: reqPage,
-            pageSize: pageSize,
+            pageSize: reqPageSize,
             totalSites: totalSites,
             totalPages: totalPages
         },
