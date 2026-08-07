@@ -89,14 +89,14 @@ function getRows(response) {
     return [];
 }
 
-function queryByTql(tql, parameters, customMaxLimit) {
+function queryByTql(tql, parameters, maxLimit) {
     var allRows = [];
     var start = 0;
     var pageSize = 1000;
-    var maxRowsLimit = customMaxLimit || 25000; // Increased limit (25000 records) for full historical coverage without truncation
+    var safetyLimit = maxLimit || 100000; // Auto-pagination up to 100,000 records safely under OWS RAM quota
 
     try {
-        while (start < maxRowsLimit) {
+        while (start < safetyLimit) {
             var request = {
                 start: start,
                 limit: pageSize,
@@ -116,13 +116,16 @@ function queryByTql(tql, parameters, customMaxLimit) {
                 break;
             }
 
-            allRows = allRows.concat(pageRows);
+            for (var r = 0; r < pageRows.length; r++) {
+                allRows.push(pageRows[r]);
+            }
 
+            // AUTO-PAGINATION COMPLETE: Jika jumlah baris halaman ini < pageSize, seluruh data sudah selesai ditarik!
             if (pageRows.length < pageSize) {
                 break;
             }
 
-            start += pageSize;
+            start += pageRows.length;
         }
         return allRows;
     } catch (e) {
@@ -373,10 +376,10 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
-var liveRows = queryByTql(liveTql, {}, 10000);
-var historyRows = queryByTql(historyTql, {}, 25000);
-var ttRows = queryByTql(ttTql, {}, 3000);
-var bsRows = queryByTql(bsTql, {}, 500);
+var liveRows = queryByTql(liveTql, {});
+var historyRows = queryByTql(historyTql, {});
+var ttRows = queryByTql(ttTql, {});
+var bsRows = queryByTql(bsTql, {});
 
 // Build Business Status Label Map (UUID -> optionlabel)
 var bsStatusMap = {};
