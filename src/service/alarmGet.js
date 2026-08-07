@@ -363,10 +363,13 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
 
 var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSiteCodesList.join(",") + ")") : " AND sitecode IN ('__NO_MATCHING_SITES__')";
 
-// 2. QUERY LIVE & HISTORY ALARMS FILTERED BY FWA SITES AT DATABASE LEVEL (sitedownfault = '1' & domain = '1001')
-var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
+// 2. QUERY LIVE & HISTORY ALARMS FILTERED BY FWA SITES AT DATABASE LEVEL (sitedownfault = '1')
+var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
+var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
+    "WHERE firstinserttime <= " + windowEndMs + " " +
+    "AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL) " +
+    "AND (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
 var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "WHERE (createtime >= '" + startISO + "' AND createtime <= '" + endISO + "') " +
