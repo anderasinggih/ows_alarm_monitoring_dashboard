@@ -364,9 +364,9 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 // ==========================================
 // 4. QUERY LIVE & HISTORY ALARMS
 // ==========================================
-var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
+var liveTql = "SELECT sitecode, site_code, site_id, siteid, sitename, sitedownfault, domain, firstinserttime, firstoccurrence, eventtime, event_time, cleartime, alarmname, alarm_name, rawalarmname FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
+var historyTql = "SELECT sitecode, site_code, site_id, siteid, sitename, sitedownfault, domain, firstinserttime, firstoccurrence, eventtime, event_time, cleartime, alarmname, alarm_name, rawalarmname FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
     "WHERE firstinserttime <= " + windowEndMs + " " +
     "AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
