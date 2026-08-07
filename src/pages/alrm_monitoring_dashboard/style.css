@@ -203,6 +203,12 @@
   background-color: #27272a;
 }
 
+.custom-kpi-card-active {
+  border-color: #f59e0b !important;
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
+}
+
 .custom-kpi-icon-wrapper {
   width: 44px;
   height: 44px;

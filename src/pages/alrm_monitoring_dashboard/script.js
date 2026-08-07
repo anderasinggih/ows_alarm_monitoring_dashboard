@@ -53,6 +53,7 @@ var DashboardState = {
     searchQuery: '',
     selectedRegion: '',
     selectedVendor: '',
+    isOnlyDownFilterActive: false,
     searchDebounceTimeout: null,
     startDate: getTodayDates().startDate,
     endDate: getTodayDates().endDate,
@@ -100,6 +101,11 @@ function getActiveFilterLabel() {
     // 4. Search Query Badge
     if (DashboardState.searchQuery) {
         html += '<span class="custom-active-filter-badge">Search: "' + DashboardState.searchQuery + '"</span>';
+    }
+
+    // 5. Active Down Only Badge
+    if (DashboardState.isOnlyDownFilterActive) {
+        html += '<span class="custom-active-filter-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Filter: Active Down Only</span>';
     }
 
     return html;
@@ -241,6 +247,28 @@ function renderFilterPanel() {
                 }, 300); // 300ms Debounce
             });
         }
+
+        // Click Event Listener for SITES AFFECTED & TOTAL ALARMS DOWN KPI Cards
+        var sitesAffectedCard = document.getElementById('customKpiCardSitesAffected');
+        var totalAlarmsCard = document.getElementById('customKpiCardTotalAlarms');
+
+        function toggleDownFilter() {
+            DashboardState.isOnlyDownFilterActive = !DashboardState.isOnlyDownFilterActive;
+            if (sitesAffectedCard) {
+                if (DashboardState.isOnlyDownFilterActive) sitesAffectedCard.classList.add('custom-kpi-card-active');
+                else sitesAffectedCard.classList.remove('custom-kpi-card-active');
+            }
+            if (totalAlarmsCard) {
+                if (DashboardState.isOnlyDownFilterActive) totalAlarmsCard.classList.add('custom-kpi-card-active');
+                else totalAlarmsCard.classList.remove('custom-kpi-card-active');
+            }
+            DashboardState.pagination.currentPage = 1;
+            updateActiveBadge();
+            applySearchFilter();
+        }
+
+        if (sitesAffectedCard) sitesAffectedCard.onclick = toggleDownFilter;
+        if (totalAlarmsCard) totalAlarmsCard.onclick = toggleDownFilter;
     }
 
     // Dynamic Injection for Panel Header (Grid / List Buttons)
@@ -496,7 +524,9 @@ function applySearchFilter() {
         var itemVenId = (item.vendorId || '').toLowerCase();
         var matchesVendor = !ven || itemVenLabel === ven || itemVenId === ven || itemVenLabel.indexOf(ven) !== -1;
 
-        return matchesQuery && matchesRegion && matchesVendor;
+        var matchesDownOnly = !DashboardState.isOnlyDownFilterActive || item.isDown || item.isCurrentlyDown || item.totalAlarms > 0;
+
+        return matchesQuery && matchesRegion && matchesVendor && matchesDownOnly;
     });
 
     renderTable();
