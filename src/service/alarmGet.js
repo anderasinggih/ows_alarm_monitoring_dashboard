@@ -366,10 +366,7 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 // 2. QUERY LIVE & HISTORY ALARMS FILTERED BY FWA SITES AT DATABASE LEVEL (sitedownfault = '1' & domain = '1001')
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
-var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
-    "WHERE ((firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL)) " +
-    "OR (firstinserttime <= '" + endISO + "' AND (cleartime >= '" + startISO + "' OR cleartime = '0' OR cleartime IS NULL))) " +
-    "AND (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
+var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "WHERE (createtime >= '" + startISO + "' AND createtime <= '" + endISO + "') " +
@@ -660,7 +657,7 @@ for (var l = 0; l < liveRows.length; l++) {
 // 3. STRICT LEFT JOIN HISTORY ALARMS TO MASTER CMDB FWA SITES (site_code / site_id)
 for (var h = 0; h < historyRows.length; h++) {
     var alarmH = historyRows[h];
-    var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.eventtime || alarmH.event_time, windowStartMs);
+    var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.firstoccurrence || alarmH.eventtime || alarmH.event_time, windowStartMs);
     var rawClearH = parseOWSTimestamp(alarmH.cleartime, 0);
 
     // If cleartime is 0, null, or empty, alarm is NOT cleared yet (Active)
