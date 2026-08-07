@@ -517,6 +517,7 @@ function getSiteNameFromRecord(record) {
 
 var siteIntervalMap = {};
 var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
+var regionSummaryMap = {}; // Region Summary Aggregation Map
 var totalAlarmCountAccumulated = 0;
 
 // 1. PRE-POPULATE MASTER SITES FROM CMDB SITES (cmdbSiteRows)
@@ -572,6 +573,17 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     if (cOnAirMs === 0 || cOnAirMs > windowEndMs) {
         continue;
     }
+
+    // Accumulate Region Summary On-Air Site Count
+    if (!regionSummaryMap[cRegionName]) {
+        regionSummaryMap[cRegionName] = {
+            region: cRegionName,
+            onAir: 0,
+            siteDown: 0,
+            ngLinkDown: 0
+        };
+    }
+    regionSummaryMap[cRegionName].onAir += 1;
 
     if (!siteIntervalMap[cSiteName]) {
         siteIntervalMap[cSiteName] = {
@@ -759,6 +771,10 @@ for (var sKey in siteIntervalMap) {
     }
     if (item.activeAlarms > 0) {
         activeDownSitesCount++;
+        var rName = item.regionLabel || '-';
+        if (regionSummaryMap[rName]) {
+            regionSummaryMap[rName].siteDown += 1;
+        }
     }
 
     if (totalDowntimeMergedMs > maxDowntimeMs) {
@@ -832,6 +848,25 @@ sitesList.sort(function (a, b) {
 
 var globalAvgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
 
+// Build Region Summary Aggregation List
+var regionSummaryList = [];
+var totalRegOnAir = 0;
+var totalRegSiteDown = 0;
+var totalRegNgLinkDown = 0;
+
+for (var rKey in regionSummaryMap) {
+    var rObj = regionSummaryMap[rKey];
+    regionSummaryList.push(rObj);
+    totalRegOnAir += rObj.onAir;
+    totalRegSiteDown += rObj.siteDown;
+    totalRegNgLinkDown += rObj.ngLinkDown;
+}
+
+regionSummaryList.sort(function (a, b) {
+    if (a.siteDown !== b.siteDown) return b.siteDown - a.siteDown;
+    return b.onAir - a.onAir;
+});
+
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
 
@@ -842,6 +877,14 @@ return {
         queryParams: {
             startDate: startISO.substring(0, 10),
             endDate: endISO.substring(0, 10)
+        },
+        regionSummary: {
+            regions: regionSummaryList,
+            totals: {
+                onAir: totalRegOnAir,
+                siteDown: totalRegSiteDown,
+                ngLinkDown: totalRegNgLinkDown
+            }
         },
         summary: {
             totalAlarmsDown: totalAlarmCountAccumulated,
