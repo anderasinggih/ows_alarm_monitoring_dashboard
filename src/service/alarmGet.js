@@ -92,8 +92,8 @@ function getRows(response) {
 function queryByTql(tql, parameters, maxLimit) {
     var allRows = [];
     var start = 0;
-    var pageSize = 1000;
-    var safetyLimit = maxLimit || 100000; // Auto-pagination up to 100,000 records safely under OWS RAM quota
+    var pageSize = 500; // Smaller page size = fewer JS commands per iteration
+    var safetyLimit = maxLimit || 10000; // Default safety cap to prevent JS quota breach
 
     try {
         while (start < safetyLimit) {
@@ -351,7 +351,7 @@ if (searchQueryStr !== "") {
     siteTql += " AND (site_name LIKE '%" + cleanQ + "%' OR site_id LIKE '%" + cleanQ + "%' OR site_code LIKE '%" + cleanQ + "%')";
 }
 
-var cmdbSiteRows = queryByTql(siteTql, {});
+var cmdbSiteRows = queryByTql(siteTql, {}, 3000); // Max 3000 FWA sites (realistic for Indonesia)
 
 // Collect All FWA Site IDs + Site Codes for Database Level IN Filtering (site_id AND site_code to match sitecode in alarm tables)
 var fwaSiteCodesList = [];
@@ -387,10 +387,10 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
-var liveRows = queryByTql(liveTql, {});
-var historyRows = queryByTql(historyTql, {});
-var ttRows = queryByTql(ttTql, {});
-var bsRows = queryByTql(bsTql, {});
+var liveRows = queryByTql(liveTql, {}, 3000);       // Max 3000 active FWA alarms
+var historyRows = queryByTql(historyTql, {}, 15000);  // Max 15000 history records per window
+var ttRows = queryByTql(ttTql, {}, 2000);             // Max 2000 trouble tickets
+var bsRows = queryByTql(bsTql, {}, 200);              // Business status options (always small)
 
 // Build Business Status Label Map (UUID -> optionlabel)
 var bsStatusMap = {};
@@ -528,8 +528,9 @@ function getSiteNameFromRecord(record) {
     return extractOWSField(record.sitename || record.site_name || record.name);
 }
 
-var siteIntervalMap = {};
-var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
+var siteIntervalMap = {};   // LAZY: hanya dibuat per-site saat alarm ditemukan
+var siteCmdbDataMap = {};   // Metadata CMDB semua site (tanpa alarms/intervals array)
+var siteIdToKeyMap = {};    // Maps cmdb site_id/site_code -> primary cSiteName key
 var totalAlarmCountAccumulated = 0;
 
 // 1. PRE-POPULATE MASTER SITES FROM CMDB SITES (cmdbSiteRows)
@@ -589,23 +590,19 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     var cSiteId = extractOWSField(cRow.site_id || cRow.siteid);
     var cSiteCode = extractOWSField(cRow.site_code || cRow.sitecode);
 
-    if (!siteIntervalMap[cSiteName]) {
-        siteIntervalMap[cSiteName] = {
-            siteName: cSiteName,
-            siteId: cSiteId,
-            regionLabel: cRegionName,
-            regionId: cRegionRaw,
-            vendorLabel: cVendorLabel,
-            vendorId: cVendorRaw,
-            onAirMs: cOnAirMs,
-            onAirStr: cOnAirStr,
-            totalAlarms: 0,
-            activeAlarms: 0,
-            intervals: [],
-            alarms: [],
-            firstOccurMs: 0
-        };
-    }
+    // OPTIMASI QUOTA: siteIntervalMap TIDAK dibuat di sini untuk semua site.
+    // Hanya index lookup map yang dibangun. siteIntervalMap dibuat LAZY saat alarm ditemukan.
+    // Ini hemat jutaan JS command karena tidak perlu alokasi object untuk 3000 site kosong.
+    siteCmdbDataMap[cSiteName] = {
+        siteName: cSiteName,
+        siteId: cSiteId,
+        regionLabel: cRegionName,
+        regionId: cRegionRaw,
+        vendorLabel: cVendorLabel,
+        vendorId: cVendorRaw,
+        onAirMs: cOnAirMs,
+        onAirStr: cOnAirStr
+    };
 
     // Index all CMDB site identifiers (site_id, site_code, site_name) to the primary cSiteName key
     var keysToRegister = [cSiteId, cSiteCode, cSiteName];
@@ -616,6 +613,27 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
             siteIdToKeyMap[keyVal.toUpperCase()] = cSiteName;
         }
     }
+}
+
+// Helper: Buat entry siteIntervalMap secara LAZY (hanya saat alarm ditemukan)
+function ensureSiteIntervalEntry(siteKey) {
+    if (siteIntervalMap[siteKey]) return;
+    var cmdb = siteCmdbDataMap[siteKey] || {};
+    siteIntervalMap[siteKey] = {
+        siteName: cmdb.siteName || siteKey,
+        siteId: cmdb.siteId || siteKey,
+        regionLabel: cmdb.regionLabel || '-',
+        regionId: cmdb.regionId || '-',
+        vendorLabel: cmdb.vendorLabel || '-',
+        vendorId: cmdb.vendorId || '-',
+        onAirMs: cmdb.onAirMs || 1,
+        onAirStr: cmdb.onAirStr || '-',
+        totalAlarms: 0,
+        activeAlarms: 0,
+        intervals: [],
+        alarms: [],
+        firstOccurMs: 0
+    };
 }
 
 // Helper cerdas menemukan Site Key di CMDB dari Record Alarm (STRICT MURNI: sitecode & site_id ONLY)
@@ -636,28 +654,10 @@ for (var l = 0; l < liveRows.length; l++) {
     var targetSiteKeyL = findMatchingSiteKey(alarmL);
     if (!targetSiteKeyL) {
         var sCodeL = extractOWSField(alarmL.sitecode || alarmL.site_code || alarmL.site_id || alarmL.siteid || alarmL.necode);
-        if (sCodeL) {
-            targetSiteKeyL = sCodeL;
-            if (!siteIntervalMap[targetSiteKeyL]) {
-                siteIntervalMap[targetSiteKeyL] = {
-                    siteName: targetSiteKeyL,
-                    siteId: targetSiteKeyL,
-                    regionLabel: extractOWSField(alarmL.region_name || alarmL.region) || '-',
-                    regionId: '-',
-                    vendorLabel: extractOWSField(alarmL.vendor_name || alarmL.vendor) || '-',
-                    vendorId: '-',
-                    onAirMs: 1,
-                    onAirStr: '-',
-                    totalAlarms: 0,
-                    activeAlarms: 0,
-                    intervals: [],
-                    alarms: [],
-                    firstOccurMs: 0
-                };
-            }
-        }
+        if (sCodeL) { targetSiteKeyL = sCodeL; }
     }
-    if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue;
+    if (!targetSiteKeyL) continue;
+    ensureSiteIntervalEntry(targetSiteKeyL);
 
     var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
     var isLiveActive = (rawClearL === 0);
@@ -710,28 +710,10 @@ for (var h = 0; h < historyRows.length; h++) {
         var targetSiteKeyH = findMatchingSiteKey(alarmH);
         if (!targetSiteKeyH) {
             var sCodeH = extractOWSField(alarmH.sitecode || alarmH.site_code || alarmH.site_id || alarmH.siteid || alarmH.necode);
-            if (sCodeH) {
-                targetSiteKeyH = sCodeH;
-                if (!siteIntervalMap[targetSiteKeyH]) {
-                    siteIntervalMap[targetSiteKeyH] = {
-                        siteName: targetSiteKeyH,
-                        siteId: targetSiteKeyH,
-                        regionLabel: extractOWSField(alarmH.region_name || alarmH.region) || '-',
-                        regionId: '-',
-                        vendorLabel: extractOWSField(alarmH.vendor_name || alarmH.vendor) || '-',
-                        vendorId: '-',
-                        onAirMs: 1,
-                        onAirStr: '-',
-                        totalAlarms: 0,
-                        activeAlarms: 0,
-                        intervals: [],
-                        alarms: [],
-                        firstOccurMs: 0
-                    };
-                }
-            }
+            if (sCodeH) { targetSiteKeyH = sCodeH; }
         }
-        if (!targetSiteKeyH || !siteIntervalMap[targetSiteKeyH]) continue;
+        if (!targetSiteKeyH) continue;
+        ensureSiteIntervalEntry(targetSiteKeyH);
 
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
@@ -774,8 +756,9 @@ for (var sKey in siteIntervalMap) {
     var totalDowntimeMergedMs = 0;
     var latestOccurMs = 0;
 
-    if (item.totalAlarms > 0 || totalDowntimeMergedMs > 0) {
-        // Site terpengaruh gangguan (mengalami downtime) dalam periode tanggal ini
+    // SKIP: Site tanpa alarm sama sekali — hemat JS command quota secara drastis
+    if (item.totalAlarms === 0 && item.activeAlarms === 0 && item.intervals.length === 0) {
+        continue;
     }
 
     if (item.intervals.length > 0) {
