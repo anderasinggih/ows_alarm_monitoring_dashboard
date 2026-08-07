@@ -54,8 +54,6 @@ var DashboardState = {
     selectedRegion: '',
     selectedVendor: '',
     kpiFilterMode: '', // '', 'active_down', 'sites_affected'
-    isRegionSummaryExpanded: false,
-    regionSummary: null,
     searchDebounceTimeout: null,
     startDate: getTodayDates().startDate,
     endDate: getTodayDates().endDate,
@@ -384,11 +382,6 @@ function fetchDashboardData() {
                     DashboardState.pagination.pageSize = resultData.pagination.pageSize || 50;
                     DashboardState.pagination.totalSites = resultData.pagination.totalSites || 0;
                     DashboardState.pagination.totalPages = resultData.pagination.totalPages || 1;
-                }
-
-                if (resultData && resultData.regionSummary) {
-                    DashboardState.regionSummary = resultData.regionSummary;
-                    renderRegionSummaryTable();
                 }
 
                 if (resultData && resultData.summary) {
@@ -952,90 +945,9 @@ function openSiteDetailModal(siteData) {
 // 1-SECOND LIVE TICKER FOR DOWNTIME & AVAILABLE COUNTERS
 var liveTickerInterval = null;
 
-// Render Region Summary Collapsible Table
-function renderRegionSummaryTable() {
-    var container = document.getElementById('customRegionSummaryTableContainer');
-    if (!container) return;
-
-    var regData = DashboardState.regionSummary;
-    if (!regData || !regData.regions || regData.regions.length === 0) {
-        container.innerHTML = '<div style="color: #a1a1aa; padding: 12px; text-align: center; font-size: 13px;">No region summary data available.</div>';
-        return;
-    }
-
-    var list = regData.regions;
-    var totals = regData.totals || { onAir: 0, siteDown: 0, ngLinkDown: 0 };
-
-    var html = '<table class="custom-region-table">';
-    html += '<thead><tr>';
-    html += '<th style="text-align: left; padding-left: 20px;">Region</th>';
-    html += '<th>On Air</th>';
-    html += '<th>Site Down</th>';
-    html += '<th>NG Link Down(no service impact)</th>';
-    html += '</tr></thead><tbody>';
-
-    for (var i = 0; i < list.length; i++) {
-        var r = list[i];
-        var downStyle = r.siteDown > 0 ? 'color: #ef4444; font-weight: 700;' : 'color: #e4e4e7;';
-        var linkDownStyle = r.ngLinkDown > 0 ? 'color: #3b82f6; font-weight: 700;' : 'color: #60a5fa;';
-
-        html += '<tr>';
-        html += '<td style="text-align: left; padding-left: 20px;"><span class="custom-region-link" data-region-name="' + r.region + '">' + r.region + '</span></td>';
-        html += '<td style="font-weight: 600; color: #f4f4f5;">' + r.onAir + '</td>';
-        html += '<td style="' + downStyle + '">' + r.siteDown + '</td>';
-        html += '<td style="' + linkDownStyle + '">' + r.ngLinkDown + '</td>';
-        html += '</tr>';
-    }
-
-    // TOTAL ROW
-    html += '<tr style="background-color: #18181b; font-weight: 700; border-top: 2px solid #3f3f46;">';
-    html += '<td style="text-align: left; padding-left: 20px; color: #f97316; font-weight: 800;">total</td>';
-    html += '<td style="color: #ffffff; font-weight: 800;">' + totals.onAir + '</td>';
-    html += '<td style="' + (totals.siteDown > 0 ? 'color: #ef4444; font-weight: 800;' : 'color: #ffffff; font-weight: 800;') + '">' + totals.siteDown + '</td>';
-    html += '<td style="color: #60a5fa; font-weight: 800;">' + totals.ngLinkDown + '</td>';
-    html += '</tr>';
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-
-    // Attach click listener to Region Links to perform dynamic region filtering
-    var regLinks = container.querySelectorAll('.custom-region-link');
-    for (var k = 0; k < regLinks.length; k++) {
-        regLinks[k].onclick = function () {
-            var regName = this.getAttribute('data-region-name');
-            if (regName) {
-                DashboardState.selectedRegion = (DashboardState.selectedRegion === regName) ? '' : regName;
-                var regSelect = document.getElementById('customRegionFilter');
-                if (regSelect) regSelect.value = DashboardState.selectedRegion;
-                DashboardState.pagination.currentPage = 1;
-                var b = document.getElementById('customActiveFilterBadge');
-                if (b) b.innerText = getActiveFilterLabel();
-                applySearchFilter();
-            }
-        };
-    }
-}
-
-function initRegionSummaryToggle() {
-    var regHeader = document.getElementById('customRegionSummaryHeader');
-    var regBody = document.getElementById('customRegionSummaryBody');
-    var regBadge = document.getElementById('customRegionSummaryBadge');
-    var regIcon = document.getElementById('customRegionSummaryToggleIcon');
-
-    if (regHeader && regBody) {
-        regHeader.onclick = function () {
-            DashboardState.isRegionSummaryExpanded = !DashboardState.isRegionSummaryExpanded;
-            if (DashboardState.isRegionSummaryExpanded) {
-                regBody.style.display = 'block';
-                if (regBadge) regBadge.innerText = 'Click to Collapse';
-                if (regIcon) regIcon.style.transform = 'rotate(180deg)';
-            } else {
-                regBody.style.display = 'none';
-                if (regBadge) regBadge.innerText = 'Click to Expand';
-                if (regIcon) regIcon.style.transform = 'rotate(0deg)';
-            }
-        };
-    }
+function startLiveTicker() {
+    // Live ticking dimatikan - semua angka statis dari data refresh
+    if (liveTickerInterval) clearInterval(liveTickerInterval);
 }
 
 // ROBUST LIFECYCLE INITIALIZER FOR OWS RUN & PREVIEWER MODE
@@ -1043,7 +955,6 @@ function initRegionSummaryToggle() {
     function tryInit() {
         var rendered = renderFilterPanel();
         if (rendered) {
-            initRegionSummaryToggle();
             fetchDashboardData();
             startLiveTicker();
         }

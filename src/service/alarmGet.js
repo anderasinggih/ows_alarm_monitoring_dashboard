@@ -41,26 +41,39 @@ function toNumber(value) {
 function parseOWSTimestamp(val, defaultFallback) {
     if (!val) return defaultFallback || 0;
     var str = extractOWSField(val);
-    if (!str) return defaultFallback || 0;
+    if (!str || str === '0' || str === 'null' || str === 'undefined') return defaultFallback || 0;
 
-    // 1. Standard ISO string format parse: YYYY-MM-DD HH:mm:ss or YYYY-MM-DDTHH:mm:ss
-    if (str.indexOf('-') !== -1 || str.indexOf('/') !== -1) {
-        var cleanStr = str.trim().replace(' ', 'T');
-        if (cleanStr.indexOf('Z') === -1 && cleanStr.indexOf('+') === -1 && cleanStr.lastIndexOf('-') <= 7) {
-            cleanStr += '+07:00';
-        }
-        var dt = new Date(cleanStr);
-        if (!isNaN(dt.getTime())) {
-            return dt.getTime();
-        }
+    // 1. Direct Numeric Epoch Timestamp check
+    var num = parseFloat(str);
+    if (!isNaN(num) && str.indexOf('-') === -1 && str.indexOf('/') === -1 && str.indexOf(':') === -1) {
+        if (num > 0) return (num < 10000000000) ? num * 1000 : num;
+        return defaultFallback || 0;
     }
 
-    // 2. Check if it is a pure numeric epoch timestamp
-    var num = parseFloat(str);
-    if (!isNaN(num) && num > 0) {
-        // If timestamp is in seconds (10 digits), convert to milliseconds
-        if (num < 10000000000) return num * 1000;
-        return num;
+    // 2. Robust String Date Splitter (YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm:ss)
+    var s = str.trim().replace('T', ' ');
+    var parts = s.split(' ');
+    var datePart = parts[0];
+    var timePart = parts[1] || '00:00:00';
+
+    var dateSep = datePart.indexOf('-') !== -1 ? '-' : (datePart.indexOf('/') !== -1 ? '/' : '');
+    if (dateSep !== '') {
+        var dArr = datePart.split(dateSep);
+        if (dArr.length === 3) {
+            var yr = parseInt(dArr[0], 10);
+            var mo = parseInt(dArr[1], 10) - 1;
+            var dy = parseInt(dArr[2], 10);
+
+            var tArr = timePart.split(':');
+            var hh = parseInt(tArr[0] || '0', 10);
+            var mi = parseInt(tArr[1] || '0', 10);
+            var ss = parseInt(tArr[2] || '0', 10);
+
+            if (!isNaN(yr) && !isNaN(mo) && !isNaN(dy)) {
+                var wibEpochMs = Date.UTC(yr, mo, dy, hh, mi, ss, 0) - WIB_OFFSET_MS;
+                return wibEpochMs;
+            }
+        }
     }
 
     return defaultFallback || 0;
@@ -133,42 +146,28 @@ function formatDuration(ms) {
     return seconds + "s";
 }
 
-function formatISODate(dateObj) {
-    // Convert to WIB (UTC+7)
-    var utcMs = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
-    var wibDate = new Date(utcMs + (7 * 60 * 60 * 1000));
-    var yyyy = wibDate.getFullYear();
-    var mm = String(wibDate.getMonth() + 1);
+function formatISODate(input) {
+    if (!input) return "";
+    var ms = typeof input === 'number' ? input : (input.getTime ? input.getTime() : 0);
+    if (!ms) return "";
+    var wibDate = new Date(ms + WIB_OFFSET_MS);
+    var yyyy = wibDate.getUTCFullYear();
+    var mm = String(wibDate.getUTCMonth() + 1);
     if (mm.length < 2) mm = "0" + mm;
-    var dd = String(wibDate.getDate());
+    var dd = String(wibDate.getUTCDate());
     if (dd.length < 2) dd = "0" + dd;
-    var hh = String(wibDate.getHours());
+    var hh = String(wibDate.getUTCHours());
     if (hh.length < 2) hh = "0" + hh;
-    var mi = String(wibDate.getMinutes());
+    var mi = String(wibDate.getUTCMinutes());
     if (mi.length < 2) mi = "0" + mi;
-    var ss = String(wibDate.getSeconds());
+    var ss = String(wibDate.getUTCSeconds());
     if (ss.length < 2) ss = "0" + ss;
     return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi + ":" + ss;
 }
 
 function formatTimeOnly(ms) {
     if (!ms) return "-";
-    // Convert to WIB (UTC+7)
-    var dateObj = new Date(Number(ms));
-    var utcMs = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
-    var wibDate = new Date(utcMs + (7 * 60 * 60 * 1000));
-    var yyyy = wibDate.getFullYear();
-    var mm = String(wibDate.getMonth() + 1);
-    if (mm.length < 2) mm = "0" + mm;
-    var dd = String(wibDate.getDate());
-    if (dd.length < 2) dd = "0" + dd;
-    var hh = String(wibDate.getHours());
-    if (hh.length < 2) hh = "0" + hh;
-    var mi = String(wibDate.getMinutes());
-    if (mi.length < 2) mi = "0" + mi;
-    var ss = String(wibDate.getSeconds());
-    if (ss.length < 2) ss = "0" + ss;
-    return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi + ":" + ss;
+    return formatISODate(Number(ms));
 }
 
 function mergeOverlappingIntervals(intervals) {
@@ -282,8 +281,8 @@ var totalWindowMs = windowEndMs - windowStartMs;
 if (totalWindowMs <= 0) totalWindowMs = 24 * 60 * 60 * 1000;
 
 var execStartMs = new Date().getTime();
-var startISO = formatISODate(new Date(windowStartMs));
-var endISO = formatISODate(new Date(windowEndMs));
+var startISO = formatISODate(windowStartMs);
+var endISO = formatISODate(windowEndMs);
 
 // 1. FETCH LOOKUP CMDB MAPS FIRST (REGION & VENDOR)
 var vendorTql = "SELECT * FROM \"/datahub/cmdb/cmdb_vendor\"";
@@ -365,8 +364,8 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
-    "WHERE ((firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL)) " +
-    "OR (firstinserttime <= '" + endISO + "' AND (cleartime >= '" + startISO + "' OR cleartime = '0' OR cleartime IS NULL))) " +
+    "WHERE ((firstinserttime <= '" + endISO + "' AND (cleartime >= '" + startISO + "' OR cleartime = '0' OR cleartime IS NULL OR cleartime = '')) " +
+    "OR (firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0))) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
@@ -517,7 +516,6 @@ function getSiteNameFromRecord(record) {
 
 var siteIntervalMap = {};
 var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
-var regionSummaryMap = {}; // Region Summary Aggregation Map
 var totalAlarmCountAccumulated = 0;
 
 // 1. PRE-POPULATE MASTER SITES FROM CMDB SITES (cmdbSiteRows)
@@ -573,17 +571,6 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     if (cOnAirMs === 0 || cOnAirMs > windowEndMs) {
         continue;
     }
-
-    // Accumulate Region Summary On-Air Site Count
-    if (!regionSummaryMap[cRegionName]) {
-        regionSummaryMap[cRegionName] = {
-            region: cRegionName,
-            onAir: 0,
-            siteDown: 0,
-            ngLinkDown: 0
-        };
-    }
-    regionSummaryMap[cRegionName].onAir += 1;
 
     if (!siteIntervalMap[cSiteName]) {
         siteIntervalMap[cSiteName] = {
@@ -771,10 +758,6 @@ for (var sKey in siteIntervalMap) {
     }
     if (item.activeAlarms > 0) {
         activeDownSitesCount++;
-        var rName = item.regionLabel || '-';
-        if (regionSummaryMap[rName]) {
-            regionSummaryMap[rName].siteDown += 1;
-        }
     }
 
     if (totalDowntimeMergedMs > maxDowntimeMs) {
@@ -848,25 +831,6 @@ sitesList.sort(function (a, b) {
 
 var globalAvgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
 
-// Build Region Summary Aggregation List
-var regionSummaryList = [];
-var totalRegOnAir = 0;
-var totalRegSiteDown = 0;
-var totalRegNgLinkDown = 0;
-
-for (var rKey in regionSummaryMap) {
-    var rObj = regionSummaryMap[rKey];
-    regionSummaryList.push(rObj);
-    totalRegOnAir += rObj.onAir;
-    totalRegSiteDown += rObj.siteDown;
-    totalRegNgLinkDown += rObj.ngLinkDown;
-}
-
-regionSummaryList.sort(function (a, b) {
-    if (a.siteDown !== b.siteDown) return b.siteDown - a.siteDown;
-    return b.onAir - a.onAir;
-});
-
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
 
@@ -877,14 +841,6 @@ return {
         queryParams: {
             startDate: startISO.substring(0, 10),
             endDate: endISO.substring(0, 10)
-        },
-        regionSummary: {
-            regions: regionSummaryList,
-            totals: {
-                onAir: totalRegOnAir,
-                siteDown: totalRegSiteDown,
-                ngLinkDown: totalRegNgLinkDown
-            }
         },
         summary: {
             totalAlarmsDown: totalAlarmCountAccumulated,
