@@ -427,27 +427,8 @@ for (var t = 0; t < ttRows.length; t++) {
 
     var tDateStr = getLocalDateStr(tCreateStr) || getLocalDateStr(tCreateMs);
 
-    var tOrderId = extractOWSField(ttRow.orderidview || ttRow.orderid || ttRow.sourceticketid || tId);
-    var tTicketUuid = extractOWSField(ttRow.ticketid || ttRow.id || ttRow.ticket_id);
-    var tProcessDefKey = extractOWSField(ttRow.processdefkey) || "ID_799_1510131121023";
-    var tCurrentPhase = extractOWSField(ttRow.current_phase || ttRow.operate_phase) || "Handle TT";
-    var tOrderStatus = extractOWSField(ttRow.ticketstatus) || "running";
-
-    var tUrl = "/adc-web/bpm/order-process/order-submit-panel.html?" +
-        "orderid=" + encodeURIComponent(tOrderId) +
-        "&processdefkey=" + encodeURIComponent(tProcessDefKey) +
-        "&ticketid=" + encodeURIComponent(tTicketUuid) +
-        "&currentphase=" + encodeURIComponent(tCurrentPhase) +
-        "&processstatus=" + encodeURIComponent(tOrderStatus) +
-        "&app_name=TroubleTicket&module_name=TroubleTicket&is_archived=false" +
-        "&process_name=" + encodeURIComponent(tProcessDefKey) +
-        "&order_status=" + encodeURIComponent(tOrderStatus);
-
     var ttEntry = {
         ticketId: tId,
-        orderId: tOrderId,
-        ticketUuid: tTicketUuid,
-        ticketUrl: tUrl,
         createtimeMs: tCreateMs,
         createtimeStr: tCreateStr || '-',
         rootCause: tRc || '-',

@@ -832,12 +832,7 @@ function openSiteDetailModal(siteData) {
             else if (bsLabel === 'In Progress' || bsLabel === 'WIP' || bsLabel === 'In Process') { bsColor = '#60a5fa'; bsBg = '#172554'; bsBorder = '#2563eb'; }
             else if (bsLabel === 'New' || bsLabel === 'Initialized') { bsColor = '#fb923c'; bsBg = '#431407'; bsBorder = '#ea580c'; }
 
-            var ticketLinkHtml = ticket.ticketUrl ?
-                '<a href="' + ticket.ticketUrl + '" target="_blank" class="custom-modal-ticket-id" style="text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Open Trouble Ticket in OWS">' +
-                '  <span>' + ticket.ticketId + '</span>' +
-                '  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>' +
-                '</a>' :
-                '<span class="custom-modal-ticket-id">' + ticket.ticketId + '</span>';
+            var ticketLinkHtml = '<span class="custom-modal-ticket-id" style="background: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; font-weight: 600;">' + ticket.ticketId + '</span>';
 
             modalHtml += '' +
                 '<div class="custom-modal-ticket-card">' +
