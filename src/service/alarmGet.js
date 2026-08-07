@@ -280,6 +280,13 @@ if (startDateStr === "" && endDateStr === "") {
     windowEndMs = todayEndWIBMs;
 }
 
+// SAFEGUARD: Jika startDate > endDate (misal user kebalik memasukkan tanggal di API), otomatis tukar agar valid
+if (windowStartMs > windowEndMs) {
+    var tempMs = windowStartMs;
+    windowStartMs = windowEndMs;
+    windowEndMs = tempMs;
+}
+
 var totalWindowMs = windowEndMs - windowStartMs;
 if (totalWindowMs <= 0) totalWindowMs = 24 * 60 * 60 * 1000;
 
