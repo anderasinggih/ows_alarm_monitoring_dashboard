@@ -548,6 +548,8 @@ function renderTable() {
     var totalItems = pag.totalSites || list.length;
     var totalPages = pag.totalPages || 1;
     var pageItems = list; // already sliced by server
+    // startIdx untuk nomor baris global (misal page 3: baris mulai dari 41)
+    var startIdx = (pag.currentPage - 1) * pag.pageSize;
 
     var html = '' +
         '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #27272a; background: #18181b;">' +
@@ -564,7 +566,7 @@ function renderTable() {
         for (var g = 0; g < pageItems.length; g++) {
             var gSite = pageItems[g];
             var gPct = gSite.availRatePct || "100.0";
-            var gGlobalIndex = startIdx + g;
+            var gGlobalIndex = g; // index lokal (0-19), allSites = 20 item dari server
             var gVendor = gSite.vendorLabel || '-';
             var gRegion = gSite.regionLabel || '-';
 
@@ -633,8 +635,8 @@ function renderTable() {
             } else if (pctNum <= 80) {
                 pctColor = '#f59e0b'; // Kuning (60 - 80%)
             }
-            var rowNo = startIdx + i + 1;
-            var globalIndex = startIdx + i;
+            var rowNo = startIdx + i + 1;  // nomor baris global
+            var globalIndex = i;            // index lokal di allSites (0-19)
             var vLabel = site.vendorLabel || '-';
             var rLabel = site.regionLabel || '-';
             var sId = site.siteId || '-';
