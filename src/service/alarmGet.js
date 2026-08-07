@@ -296,8 +296,8 @@ var regionMap = {};
 var regionNameToIdsMap = {};
 for (var r = 0; r < regionRows.length; r++) {
     var rRow = regionRows[r];
-    var rId = extractOWSField(getPropIC(rRow, 'id') || getPropIC(rRow, 'value_id') || getPropIC(rRow, 'keycode'));
-    var rName = extractOWSField(getPropIC(rRow, 'region_name') || getPropIC(rRow, 'label') || getPropIC(rRow, 'name') || getPropIC(rRow, 'keycode'));
+    var rId = extractOWSField(getPropIC(rRow, 'id') || getPropIC(rRow, 'keycode'));
+    var rName = extractOWSField(getPropIC(rRow, 'region_name') || getPropIC(rRow, 'keycode'));
     if (rId && rName) {
         regionMap[rId] = rName;
         var lowerName = rName.toLowerCase();
@@ -311,7 +311,7 @@ var vendorNameToIdsMap = {};
 for (var v = 0; v < vendorRows.length; v++) {
     var vRow = vendorRows[v];
     var vId = extractOWSField(getPropIC(vRow, 'id') || getPropIC(vRow, 'value_id') || getPropIC(vRow, 'keycode'));
-    var vName = extractOWSField(getPropIC(vRow, 'vendor_name') || getPropIC(vRow, 'label') || getPropIC(vRow, 'name') || getPropIC(vRow, 'keycode'));
+    var vName = extractOWSField(getPropIC(vRow, 'vendor_name') || getPropIC(vRow, 'label') || getPropIC(vRow, 'keycode'));
     if (vId && vName) {
         vendorMap[vId] = vName;
         var lowerVName = vName.toLowerCase();
@@ -323,31 +323,31 @@ for (var v = 0; v < vendorRows.length; v++) {
 // ==========================================
 // 3. QUERY CMDB SITE FWA ON-AIR FIRST
 // ==========================================
-var siteTql = "SELECT site_id, site_name, site_code, vendor, region_name, province, city, on_air_time, access_type, site_stage FROM \"/datahub/cmdb/cmdb_site\" " +
+var siteTql = "SELECT site_id, keycode, site_name, vendor, region_name, on_air_time, access_type, site_stage FROM \"/datahub/cmdb/cmdb_site\" " +
     "WHERE access_type = 'ce1d6700-f34d-11f0-80d8-0255ac12193b' " +
     "AND site_stage = 'f343d1fb-e165-11f0-90da-0255ac121938'";
 
 if (selectedVendorStr !== "") {
     var matchingVendorIds = vendorNameToIdsMap[selectedVendorStr.toLowerCase()] || [];
     if (matchingVendorIds.length > 0) {
-        siteTql += " AND (vendor IN (" + matchingVendorIds.join(",") + ") OR vendor_id IN (" + matchingVendorIds.join(",") + ") OR vendor = '" + selectedVendorStr + "')";
+        siteTql += " AND vendor IN (" + matchingVendorIds.join(",") + ")";
     } else {
-        siteTql += " AND (vendor = '" + selectedVendorStr + "' OR vendor_id = '" + selectedVendorStr + "')";
+        siteTql += " AND vendor = '" + selectedVendorStr + "'";
     }
 }
 
 if (selectedRegionStr !== "") {
     var matchingRegionIds = regionNameToIdsMap[selectedRegionStr.toLowerCase()] || [];
     if (matchingRegionIds.length > 0) {
-        siteTql += " AND (region_name IN (" + matchingRegionIds.join(",") + ") OR region IN (" + matchingRegionIds.join(",") + ") OR region_name = '" + selectedRegionStr + "')";
+        siteTql += " AND region_name IN (" + matchingRegionIds.join(",") + ")";
     } else {
-        siteTql += " AND (region_name = '" + selectedRegionStr + "' OR region = '" + selectedRegionStr + "')";
+        siteTql += " AND region_name = '" + selectedRegionStr + "'";
     }
 }
 
 if (searchQueryStr !== "") {
     var cleanQ = searchQueryStr.replace(/'/g, "''");
-    siteTql += " AND (site_name LIKE '%" + cleanQ + "%' OR site_id LIKE '%" + cleanQ + "%' OR site_code LIKE '%" + cleanQ + "%')";
+    siteTql += " AND (site_name LIKE '%" + cleanQ + "%' OR site_id LIKE '%" + cleanQ + "%')";
 }
 
 var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
@@ -355,7 +355,7 @@ var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
 var fwaSiteCodesList = [];
 for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     var cRow = cmdbSiteRows[cs];
-    var sIdVal = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid'));
+    var sIdVal = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'keycode'));
     if (sIdVal) fwaSiteCodesList.push("'" + sIdVal + "'");
 }
 
@@ -364,14 +364,14 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 // ==========================================
 // 4. QUERY LIVE & HISTORY ALARMS
 // ==========================================
-var liveTql = "SELECT sitecode, site_code, site_id, siteid, sitedownfault, firstinserttime, eventtime, event_time, cleartime, active, alarmname, alarm_name, rawalarmname FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
+var liveTql = "SELECT sitecode, logicsiteid, sitename, sitedownfault, firstinserttime, firstoccurrence, cleartime, active, alarmname, rawalarmname FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var historyTql = "SELECT sitecode, sitedownfault, firstinserttime, firstoccurrence, eventtime, cleartime, alarmname, rawalarmname, sitename FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
+var historyTql = "SELECT sitecode, logicsiteid, sitename, sitedownfault, firstinserttime, firstoccurrence, cleartime, active, alarmname, rawalarmname FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
     "WHERE firstinserttime <= " + windowEndMs + " " +
     "AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var ttTql = "SELECT sitename, acc_root_cause_site_name, site_name, orderidview, sourceticketid, faultno, eventno, ticketid, orderid, id, root_cause, rootcause, level_one_root_cause, sub_root_cause, subcause, level_two_root_cause, subsolutiontype, businessstatus, createtime, create_time, processdefkey, currentphase, order_status FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
+var ttTql = "SELECT sitename, acc_root_cause_site_name, orderidview, sourceticketid, faultno, eventno, ticketid, orderid, id, root_cause, rootcause, level_one_root_cause, sub_root_cause, subcause, level_two_root_cause, subsolutiontype, businessstatus, createtime, processdefkey, current_phase, operate_phase, ticketstatus FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "WHERE (createtime >= '" + startISO + "' AND createtime <= '" + endISO + "') " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT id, optionlabel FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
@@ -385,7 +385,7 @@ var bsStatusMap = {};
 for (var bs = 0; bs < bsRows.length; bs++) {
     var bsRow = bsRows[bs];
     var bsId = extractOWSField(bsRow.id);
-    var bsLabel = extractOWSField(bsRow.optionlabel || bsRow.label);
+    var bsLabel = extractOWSField(bsRow.optionlabel);
     if (bsId && bsLabel) {
         bsStatusMap[bsId] = bsLabel;
     }
@@ -409,7 +409,7 @@ function getLocalDateStr(msOrStr) {
 
 for (var t = 0; t < ttRows.length; t++) {
     var ttRow = ttRows[t];
-    var tSite = extractOWSField(ttRow.sitename || ttRow.acc_root_cause_site_name || ttRow.site_name);
+    var tSite = extractOWSField(ttRow.sitename || ttRow.acc_root_cause_site_name);
     if (!tSite) continue;
 
     var tId = extractOWSField(ttRow.orderidview || ttRow.sourceticketid || ttRow.faultno || ttRow.eventno || ttRow.ticketid);
@@ -421,7 +421,7 @@ for (var t = 0; t < ttRows.length; t++) {
     var tBsUuid = extractOWSField(ttRow.businessstatus);
     var tBsLabel = (tBsUuid && bsStatusMap[tBsUuid]) ? bsStatusMap[tBsUuid] : '-';
 
-    var tCreateStr = extractOWSField(ttRow.createtime || ttRow.create_time || '');
+    var tCreateStr = extractOWSField(ttRow.createtime || '');
     var tCreateMs = tCreateStr ? (new Date(tCreateStr.replace(' ', 'T'))).getTime() : 0;
     if (isNaN(tCreateMs)) tCreateMs = 0;
 
@@ -429,9 +429,9 @@ for (var t = 0; t < ttRows.length; t++) {
 
     var tOrderId = extractOWSField(ttRow.orderidview || ttRow.orderid || ttRow.sourceticketid || tId);
     var tTicketUuid = extractOWSField(ttRow.ticketid || ttRow.id || ttRow.ticket_id);
-    var tProcessDefKey = extractOWSField(ttRow.processdefkey || ttRow.process_def_key || ttRow.process_name) || "ID_799_1510131121023";
-    var tCurrentPhase = extractOWSField(ttRow.currentphase || ttRow.current_phase || ttRow.operate_phase) || "Handle TT";
-    var tOrderStatus = extractOWSField(ttRow.order_status || ttRow.processstatus || ttRow.orderstatus) || "running";
+    var tProcessDefKey = extractOWSField(ttRow.processdefkey) || "ID_799_1510131121023";
+    var tCurrentPhase = extractOWSField(ttRow.current_phase || ttRow.operate_phase) || "Handle TT";
+    var tOrderStatus = extractOWSField(ttRow.ticketstatus) || "running";
 
     var tUrl = "/adc-web/bpm/order-process/order-submit-panel.html?" +
         "orderid=" + encodeURIComponent(tOrderId) +
@@ -523,24 +523,16 @@ var totalAlarmCountAccumulated = 0;
 // ==========================================
 for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     var cRow = cmdbSiteRows[cs];
-    var cSiteName = extractOWSField(getPropIC(cRow, 'site_name') || getPropIC(cRow, 'sitename') || getPropIC(cRow, 'name') || getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid') || getPropIC(cRow, 'site_code') || getPropIC(cRow, 'sitecode'));
+    var cSiteName = extractOWSField(getPropIC(cRow, 'site_name'));
     if (!cSiteName) continue;
 
-    var cSiteId = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid') || getPropIC(cRow, 'keycode') || '-');
+    var cSiteId = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'keycode') || '-');
 
-    var cVendorRaw = extractOWSField(getPropIC(cRow, 'vendor') || getPropIC(cRow, 'vendor_id'));
+    var cVendorRaw = extractOWSField(getPropIC(cRow, 'vendor'));
     var cVendorLabel = vendorMap[cVendorRaw] || cVendorRaw || '-';
 
-    var cRegionRaw = extractOWSField(getPropIC(cRow, 'region_name') || getPropIC(cRow, 'regionname') || getPropIC(cRow, 'region'));
-    var cRegionName = regionMap[cRegionRaw] || cRegionRaw;
-    if (!cRegionName || cRegionName === cRegionRaw) {
-        var cProv = extractOWSField(getPropIC(cRow, 'province') || getPropIC(cRow, 'prov'));
-        var cCity = extractOWSField(getPropIC(cRow, 'city') || getPropIC(cRow, 'cityname') || getPropIC(cRow, 'township'));
-        if (cProv || cCity) {
-            cRegionName = (cProv && cCity) ? (cProv + " / " + cCity) : (cProv || cCity);
-        }
-    }
-    if (!cRegionName) cRegionName = '-';
+    var cRegionRaw = extractOWSField(getPropIC(cRow, 'region_name'));
+    var cRegionName = regionMap[cRegionRaw] || cRegionRaw || '-';
 
     if (selectedRegionStr !== "" && cRegionName.toLowerCase() !== selectedRegionStr.toLowerCase() && cRegionRaw.toLowerCase() !== selectedRegionStr.toLowerCase()) {
         continue;
@@ -559,7 +551,7 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
         }
     }
 
-    var cOnAirStr = extractOWSField(getPropIC(cRow, 'on_air_time') || getPropIC(cRow, 'onairtime') || getPropIC(cRow, 'on_air_date'));
+    var cOnAirStr = extractOWSField(getPropIC(cRow, 'on_air_time'));
     if (!cOnAirStr) {
         continue;
     }
@@ -588,25 +580,34 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
         };
     }
 
-    var cSiteId = extractOWSField(cRow.site_id || cRow.siteid);
-    var cSiteCode = extractOWSField(cRow.site_code || cRow.sitecode);
+    var cSiteId2 = extractOWSField(cRow.site_id || cRow.keycode);
 
-    var keysToRegister = [cSiteId, cSiteCode, cSiteName];
+    var keysToRegister = [cSiteId2, cSiteName];
     for (var k = 0; k < keysToRegister.length; k++) {
         var keyVal = keysToRegister[k];
         if (keyVal) {
             siteIdToKeyMap[keyVal] = cSiteName;
             siteIdToKeyMap[keyVal.toUpperCase()] = cSiteName;
+            siteIdToKeyMap[keyVal.toLowerCase()] = cSiteName;
         }
     }
 }
 
 function findMatchingSiteKey(alarmRecord) {
     if (!alarmRecord) return null;
-    
-    var alarmCode = extractOWSField(getPropIC(alarmRecord, 'sitecode') || getPropIC(alarmRecord, 'site_code') || getPropIC(alarmRecord, 'site_id') || getPropIC(alarmRecord, 'siteid'));
-    if (alarmCode && siteIdToKeyMap[alarmCode]) return siteIdToKeyMap[alarmCode];
-    if (alarmCode && siteIdToKeyMap[alarmCode.toUpperCase()]) return siteIdToKeyMap[alarmCode.toUpperCase()];
+
+    var alarmCode = extractOWSField(getPropIC(alarmRecord, 'sitecode') || getPropIC(alarmRecord, 'logicsiteid'));
+    if (alarmCode) {
+        if (siteIdToKeyMap[alarmCode]) return siteIdToKeyMap[alarmCode];
+        if (siteIdToKeyMap[alarmCode.toUpperCase()]) return siteIdToKeyMap[alarmCode.toUpperCase()];
+        if (siteIdToKeyMap[alarmCode.toLowerCase()]) return siteIdToKeyMap[alarmCode.toLowerCase()];
+    }
+
+    var alarmSiteName = extractOWSField(getPropIC(alarmRecord, 'sitename'));
+    if (alarmSiteName) {
+        if (siteIdToKeyMap[alarmSiteName]) return siteIdToKeyMap[alarmSiteName];
+        if (siteIdToKeyMap[alarmSiteName.toUpperCase()]) return siteIdToKeyMap[alarmSiteName.toUpperCase()];
+    }
 
     return null;
 }
@@ -628,10 +629,10 @@ for (var l = 0; l < liveRows.length; l++) {
         siteIntervalMap[targetSiteKeyL].activeAlarms += 1;
     }
 
-    var startL = parseOWSTimestamp(alarmL.firstinserttime || alarmL.eventtime || alarmL.event_time, windowStartMs);
+    var startL = parseOWSTimestamp(alarmL.firstinserttime || alarmL.firstoccurrence, windowStartMs);
     var effStartL = startL < windowStartMs ? windowStartMs : startL;
     var effEndL = isLiveActive ? ((windowEndMs > nowMs) ? nowMs : windowEndMs) : (rawClearL > windowEndMs ? windowEndMs : rawClearL);
-    var alarmNameL = extractOWSField(alarmL.alarmname || alarmL.alarm_name || alarmL.rawalarmname || 'Site Down Alarm');
+    var alarmNameL = extractOWSField(alarmL.alarmname || alarmL.rawalarmname || 'Site Down Alarm');
 
     if (startL > 0 && (siteIntervalMap[targetSiteKeyL].firstOccurMs === 0 || startL < siteIntervalMap[targetSiteKeyL].firstOccurMs)) {
         siteIntervalMap[targetSiteKeyL].firstOccurMs = startL;
@@ -656,10 +657,11 @@ for (var l = 0; l < liveRows.length; l++) {
 // ==========================================
 for (var h = 0; h < historyRows.length; h++) {
     var alarmH = historyRows[h];
-    var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.firstoccurrence || alarmH.eventtime || alarmH.event_time, windowStartMs);
+    var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.firstoccurrence, windowStartMs);
     var rawClearH = parseOWSTimestamp(alarmH.cleartime, 0);
+    var isActiveH = (alarmH.active === true || alarmH.active === 'true' || alarmH.active === 1 || alarmH.active === '1');
 
-    var isHistoryCleared = rawClearH > 0;
+    var isHistoryCleared = rawClearH > 0 && !isActiveH;
     var endH = isHistoryCleared ? rawClearH : windowEndMs;
 
     if (startH <= windowEndMs && endH >= windowStartMs && startH > 0) {
@@ -668,7 +670,7 @@ for (var h = 0; h < historyRows.length; h++) {
 
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
-        var alarmNameH = extractOWSField(alarmH.alarmname || alarmH.alarm_name || alarmH.rawalarmname || 'Site Down Alarm');
+        var alarmNameH = extractOWSField(alarmH.alarmname || alarmH.rawalarmname || 'Site Down Alarm');
 
         if (effEnd > effStart) {
             totalAlarmCountAccumulated++;
