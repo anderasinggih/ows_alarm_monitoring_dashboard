@@ -701,6 +701,11 @@ for (var h = 0; h < historyRows.length; h++) {
     var isHistoryCleared = rawClearH > 0;
     var endH = isHistoryCleared ? rawClearH : windowEndMs;
 
+    // Edge case: OWS timing anomaly — cleartime sedikit lebih kecil dari firstinserttime (swap agar tidak terskip)
+    if (isHistoryCleared && endH > 0 && endH < startH) {
+        var tmpSwap = startH; startH = endH; endH = tmpSwap;
+    }
+
     if (startH <= windowEndMs && endH >= windowStartMs && startH > 0) {
         var targetSiteKeyH = findMatchingSiteKey(alarmH);
         if (!targetSiteKeyH) {
