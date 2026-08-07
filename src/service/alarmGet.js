@@ -41,39 +41,26 @@ function toNumber(value) {
 function parseOWSTimestamp(val, defaultFallback) {
     if (!val) return defaultFallback || 0;
     var str = extractOWSField(val);
-    if (!str || str === '0' || str === 'null' || str === 'undefined') return defaultFallback || 0;
+    if (!str) return defaultFallback || 0;
 
-    // 1. Direct Numeric Epoch Timestamp check
-    var num = parseFloat(str);
-    if (!isNaN(num) && str.indexOf('-') === -1 && str.indexOf('/') === -1 && str.indexOf(':') === -1) {
-        if (num > 0) return (num < 10000000000) ? num * 1000 : num;
-        return defaultFallback || 0;
+    // 1. Standard ISO string format parse: YYYY-MM-DD HH:mm:ss or YYYY-MM-DDTHH:mm:ss
+    if (str.indexOf('-') !== -1 || str.indexOf('/') !== -1) {
+        var cleanStr = str.trim().replace(' ', 'T');
+        if (cleanStr.indexOf('Z') === -1 && cleanStr.indexOf('+') === -1 && cleanStr.lastIndexOf('-') <= 7) {
+            cleanStr += '+07:00';
+        }
+        var dt = new Date(cleanStr);
+        if (!isNaN(dt.getTime())) {
+            return dt.getTime();
+        }
     }
 
-    // 2. Robust String Date Splitter (YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm:ss)
-    var s = str.trim().replace('T', ' ');
-    var parts = s.split(' ');
-    var datePart = parts[0];
-    var timePart = parts[1] || '00:00:00';
-
-    var dateSep = datePart.indexOf('-') !== -1 ? '-' : (datePart.indexOf('/') !== -1 ? '/' : '');
-    if (dateSep !== '') {
-        var dArr = datePart.split(dateSep);
-        if (dArr.length === 3) {
-            var yr = parseInt(dArr[0], 10);
-            var mo = parseInt(dArr[1], 10) - 1;
-            var dy = parseInt(dArr[2], 10);
-
-            var tArr = timePart.split(':');
-            var hh = parseInt(tArr[0] || '0', 10);
-            var mi = parseInt(tArr[1] || '0', 10);
-            var ss = parseInt(tArr[2] || '0', 10);
-
-            if (!isNaN(yr) && !isNaN(mo) && !isNaN(dy)) {
-                var wibEpochMs = Date.UTC(yr, mo, dy, hh, mi, ss, 0) - WIB_OFFSET_MS;
-                return wibEpochMs;
-            }
-        }
+    // 2. Check if it is a pure numeric epoch timestamp
+    var num = parseFloat(str);
+    if (!isNaN(num) && num > 0) {
+        // If timestamp is in seconds (10 digits), convert to milliseconds
+        if (num < 10000000000) return num * 1000;
+        return num;
     }
 
     return defaultFallback || 0;
@@ -89,14 +76,16 @@ function getRows(response) {
     return [];
 }
 
-function queryByTql(tql, parameters, maxLimit) {
+function queryByTql(tql, parameters, customMaxLimit) {
     var allRows = [];
     var start = 0;
-    var pageSize = 500; // Smaller page size = fewer JS commands per iteration
-    var safetyLimit = maxLimit || 10000; // Default safety cap to prevent JS quota breach
+    var pageSize = 1000;
+    // customMaxLimit = 0 berarti UNLIMITED (loop sampai DB habis secara natural)
+    var isUnlimited = (customMaxLimit === 0);
+    var maxRowsLimit = isUnlimited ? Infinity : (customMaxLimit || 5000);
 
     try {
-        while (start < safetyLimit) {
+        while (start < maxRowsLimit) {
             var request = {
                 start: start,
                 limit: pageSize,
@@ -116,16 +105,13 @@ function queryByTql(tql, parameters, maxLimit) {
                 break;
             }
 
-            for (var r = 0; r < pageRows.length; r++) {
-                allRows.push(pageRows[r]);
-            }
+            allRows = allRows.concat(pageRows);
 
-            // AUTO-PAGINATION COMPLETE: Jika jumlah baris halaman ini < pageSize, seluruh data sudah selesai ditarik!
             if (pageRows.length < pageSize) {
-                break;
+                break; // Halaman terakhir — data habis secara natural
             }
 
-            start += pageRows.length;
+            start += pageSize;
         }
         return allRows;
     } catch (e) {
@@ -149,28 +135,42 @@ function formatDuration(ms) {
     return seconds + "s";
 }
 
-function formatISODate(input) {
-    if (!input) return "";
-    var ms = typeof input === 'number' ? input : (input.getTime ? input.getTime() : 0);
-    if (!ms) return "";
-    var wibDate = new Date(ms + WIB_OFFSET_MS);
-    var yyyy = wibDate.getUTCFullYear();
-    var mm = String(wibDate.getUTCMonth() + 1);
+function formatISODate(dateObj) {
+    // Convert to WIB (UTC+7)
+    var utcMs = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
+    var wibDate = new Date(utcMs + (7 * 60 * 60 * 1000));
+    var yyyy = wibDate.getFullYear();
+    var mm = String(wibDate.getMonth() + 1);
     if (mm.length < 2) mm = "0" + mm;
-    var dd = String(wibDate.getUTCDate());
+    var dd = String(wibDate.getDate());
     if (dd.length < 2) dd = "0" + dd;
-    var hh = String(wibDate.getUTCHours());
+    var hh = String(wibDate.getHours());
     if (hh.length < 2) hh = "0" + hh;
-    var mi = String(wibDate.getUTCMinutes());
+    var mi = String(wibDate.getMinutes());
     if (mi.length < 2) mi = "0" + mi;
-    var ss = String(wibDate.getUTCSeconds());
+    var ss = String(wibDate.getSeconds());
     if (ss.length < 2) ss = "0" + ss;
     return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi + ":" + ss;
 }
 
 function formatTimeOnly(ms) {
     if (!ms) return "-";
-    return formatISODate(Number(ms));
+    // Convert to WIB (UTC+7)
+    var dateObj = new Date(Number(ms));
+    var utcMs = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
+    var wibDate = new Date(utcMs + (7 * 60 * 60 * 1000));
+    var yyyy = wibDate.getFullYear();
+    var mm = String(wibDate.getMonth() + 1);
+    if (mm.length < 2) mm = "0" + mm;
+    var dd = String(wibDate.getDate());
+    if (dd.length < 2) dd = "0" + dd;
+    var hh = String(wibDate.getHours());
+    if (hh.length < 2) hh = "0" + hh;
+    var mi = String(wibDate.getMinutes());
+    if (mi.length < 2) mi = "0" + mi;
+    var ss = String(wibDate.getSeconds());
+    if (ss.length < 2) ss = "0" + ss;
+    return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + mi + ":" + ss;
 }
 
 function mergeOverlappingIntervals(intervals) {
@@ -284,8 +284,8 @@ var totalWindowMs = windowEndMs - windowStartMs;
 if (totalWindowMs <= 0) totalWindowMs = 24 * 60 * 60 * 1000;
 
 var execStartMs = new Date().getTime();
-var startISO = formatISODate(windowStartMs);
-var endISO = formatISODate(windowEndMs);
+var startISO = formatISODate(new Date(windowStartMs));
+var endISO = formatISODate(new Date(windowEndMs));
 
 // 1. FETCH LOOKUP CMDB MAPS FIRST (REGION & VENDOR)
 var vendorTql = "SELECT * FROM \"/datahub/cmdb/cmdb_vendor\"";
@@ -351,26 +351,14 @@ if (searchQueryStr !== "") {
     siteTql += " AND (site_name LIKE '%" + cleanQ + "%' OR site_id LIKE '%" + cleanQ + "%' OR site_code LIKE '%" + cleanQ + "%')";
 }
 
-var cmdbSiteRows = queryByTql(siteTql, {}, 3000); // Max 3000 FWA sites (realistic for Indonesia)
+var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
 
-// Collect All FWA Site IDs + Site Codes for Database Level IN Filtering (site_id AND site_code to match sitecode in alarm tables)
+// Collect All FWA Site IDs for Database Level IN Filtering (STRICT MURNI: site_id ONLY)
 var fwaSiteCodesList = [];
-var fwaSiteCodesSet = {};
 for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
-    var cRowPre = cmdbSiteRows[cs];
-    var sIdVal = extractOWSField(getPropIC(cRowPre, 'site_id') || getPropIC(cRowPre, 'siteid'));
-    var sCodeVal = extractOWSField(getPropIC(cRowPre, 'site_code') || getPropIC(cRowPre, 'sitecode'));
-    // Add both site_id and site_code (deduplicated) since alarm tables use sitecode field
-    var toAdd = [];
-    if (sIdVal) toAdd.push(sIdVal);
-    if (sCodeVal && sCodeVal !== sIdVal) toAdd.push(sCodeVal);
-    for (var ai = 0; ai < toAdd.length; ai++) {
-        var addVal = toAdd[ai];
-        if (addVal && !fwaSiteCodesSet[addVal.toUpperCase()]) {
-            fwaSiteCodesSet[addVal.toUpperCase()] = true;
-            fwaSiteCodesList.push("'" + addVal + "'");
-        }
-    }
+    var cRow = cmdbSiteRows[cs];
+    var sIdVal = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid'));
+    if (sIdVal) fwaSiteCodesList.push("'" + sIdVal + "'");
 }
 
 var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSiteCodesList.join(",") + ")") : " AND sitecode IN ('__NO_MATCHING_SITES__')";
@@ -379,7 +367,8 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
-    "WHERE (firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL OR cleartime = '' OR cleartime = '0')) " +
+    "WHERE ((firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL)) " +
+    "OR (firstinserttime <= '" + endISO + "' AND (cleartime >= '" + startISO + "' OR cleartime = '0' OR cleartime IS NULL))) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
@@ -387,10 +376,10 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
-var liveRows = queryByTql(liveTql, {}, 3000);       // Max 3000 active FWA alarms
-var historyRows = queryByTql(historyTql, {}, 15000);  // Max 15000 history records per window
-var ttRows = queryByTql(ttTql, {}, 2000);             // Max 2000 trouble tickets
-var bsRows = queryByTql(bsTql, {}, 200);              // Business status options (always small)
+var liveRows = queryByTql(liveTql, {}, 5000);
+var historyRows = queryByTql(historyTql, {}, 0); // 0 = UNLIMITED: fetch semua baris history agar downtime terekap 100%
+var ttRows = queryByTql(ttTql, {}, 1000);
+var bsRows = queryByTql(bsTql, {}, 200);
 
 // Build Business Status Label Map (UUID -> optionlabel)
 var bsStatusMap = {};
@@ -528,9 +517,8 @@ function getSiteNameFromRecord(record) {
     return extractOWSField(record.sitename || record.site_name || record.name);
 }
 
-var siteIntervalMap = {};   // LAZY: hanya dibuat per-site saat alarm ditemukan
-var siteCmdbDataMap = {};   // Metadata CMDB semua site (tanpa alarms/intervals array)
-var siteIdToKeyMap = {};    // Maps cmdb site_id/site_code -> primary cSiteName key
+var siteIntervalMap = {};
+var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
 var totalAlarmCountAccumulated = 0;
 
 // 1. PRE-POPULATE MASTER SITES FROM CMDB SITES (cmdbSiteRows)
@@ -576,35 +564,39 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
 
     // CMDB Site on_air_time Parsing
     var cOnAirStr = extractOWSField(getPropIC(cRow, 'on_air_time') || getPropIC(cRow, 'onairtime') || getPropIC(cRow, 'on_air_date'));
+    if (!cOnAirStr) {
+        continue; // STRICT EXCLUDE: Site yang on_air_time nya NULL / KOSONG DILARANG TAMPIL & DILARANG DIHITUNG
+    }
+
     var cOnAirMs = parseOWSTimestamp(cOnAirStr, 0);
 
-    // Safeguard: Jika site on_air_time kosong/null, anggap site sudah on-air sejak awal (cOnAirMs = 1)
-    if (cOnAirMs === 0) cOnAirMs = 1;
-
-    // Hanya exclude jika site baru On-Air DI MASA DEPAN setelah windowEndMs
-    if (cOnAirMs > windowEndMs) {
+    // KETENTUAN SLA TELCO: Jika Site baru On-Air SETELAH windowEndMs (atau parsing gagal 0), site BELUM LAHIR pada periode ini (EXCLUDE)
+    if (cOnAirMs === 0 || cOnAirMs > windowEndMs) {
         continue;
     }
 
-    // Extract site_id & site_code FIRST, before using them below
+    if (!siteIntervalMap[cSiteName]) {
+        siteIntervalMap[cSiteName] = {
+            siteName: cSiteName,
+            siteId: cSiteId,
+            regionLabel: cRegionName,
+            regionId: cRegionRaw,
+            vendorLabel: cVendorLabel,
+            vendorId: cVendorRaw,
+            onAirMs: cOnAirMs,
+            onAirStr: cOnAirStr,
+            totalAlarms: 0,
+            activeAlarms: 0,
+            intervals: [],
+            alarms: [],
+            firstOccurMs: 0
+        };
+    }
+
+    // Indeks seluruh identifier CMDB site (site_id, site_code, site_name) ke primary cSiteName key
     var cSiteId = extractOWSField(cRow.site_id || cRow.siteid);
     var cSiteCode = extractOWSField(cRow.site_code || cRow.sitecode);
 
-    // OPTIMASI QUOTA: siteIntervalMap TIDAK dibuat di sini untuk semua site.
-    // Hanya index lookup map yang dibangun. siteIntervalMap dibuat LAZY saat alarm ditemukan.
-    // Ini hemat jutaan JS command karena tidak perlu alokasi object untuk 3000 site kosong.
-    siteCmdbDataMap[cSiteName] = {
-        siteName: cSiteName,
-        siteId: cSiteId,
-        regionLabel: cRegionName,
-        regionId: cRegionRaw,
-        vendorLabel: cVendorLabel,
-        vendorId: cVendorRaw,
-        onAirMs: cOnAirMs,
-        onAirStr: cOnAirStr
-    };
-
-    // Index all CMDB site identifiers (site_id, site_code, site_name) to the primary cSiteName key
     var keysToRegister = [cSiteId, cSiteCode, cSiteName];
     for (var k = 0; k < keysToRegister.length; k++) {
         var keyVal = keysToRegister[k];
@@ -613,27 +605,6 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
             siteIdToKeyMap[keyVal.toUpperCase()] = cSiteName;
         }
     }
-}
-
-// Helper: Buat entry siteIntervalMap secara LAZY (hanya saat alarm ditemukan)
-function ensureSiteIntervalEntry(siteKey) {
-    if (siteIntervalMap[siteKey]) return;
-    var cmdb = siteCmdbDataMap[siteKey] || {};
-    siteIntervalMap[siteKey] = {
-        siteName: cmdb.siteName || siteKey,
-        siteId: cmdb.siteId || siteKey,
-        regionLabel: cmdb.regionLabel || '-',
-        regionId: cmdb.regionId || '-',
-        vendorLabel: cmdb.vendorLabel || '-',
-        vendorId: cmdb.vendorId || '-',
-        onAirMs: cmdb.onAirMs || 1,
-        onAirStr: cmdb.onAirStr || '-',
-        totalAlarms: 0,
-        activeAlarms: 0,
-        intervals: [],
-        alarms: [],
-        firstOccurMs: 0
-    };
 }
 
 // Helper cerdas menemukan Site Key di CMDB dari Record Alarm (STRICT MURNI: sitecode & site_id ONLY)
@@ -652,12 +623,7 @@ function findMatchingSiteKey(alarmRecord) {
 for (var l = 0; l < liveRows.length; l++) {
     var alarmL = liveRows[l];
     var targetSiteKeyL = findMatchingSiteKey(alarmL);
-    if (!targetSiteKeyL) {
-        var sCodeL = extractOWSField(alarmL.sitecode || alarmL.site_code || alarmL.site_id || alarmL.siteid || alarmL.necode);
-        if (sCodeL) { targetSiteKeyL = sCodeL; }
-    }
-    if (!targetSiteKeyL) continue;
-    ensureSiteIntervalEntry(targetSiteKeyL);
+    if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
 
     var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
     var isLiveActive = (rawClearL === 0);
@@ -701,19 +667,9 @@ for (var h = 0; h < historyRows.length; h++) {
     var isHistoryCleared = rawClearH > 0;
     var endH = isHistoryCleared ? rawClearH : windowEndMs;
 
-    // Edge case: OWS timing anomaly — cleartime sedikit lebih kecil dari firstinserttime (swap agar tidak terskip)
-    if (isHistoryCleared && endH > 0 && endH < startH) {
-        var tmpSwap = startH; startH = endH; endH = tmpSwap;
-    }
-
     if (startH <= windowEndMs && endH >= windowStartMs && startH > 0) {
         var targetSiteKeyH = findMatchingSiteKey(alarmH);
-        if (!targetSiteKeyH) {
-            var sCodeH = extractOWSField(alarmH.sitecode || alarmH.site_code || alarmH.site_id || alarmH.siteid || alarmH.necode);
-            if (sCodeH) { targetSiteKeyH = sCodeH; }
-        }
-        if (!targetSiteKeyH) continue;
-        ensureSiteIntervalEntry(targetSiteKeyH);
+        if (!targetSiteKeyH || !siteIntervalMap[targetSiteKeyH]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
 
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
@@ -756,9 +712,8 @@ for (var sKey in siteIntervalMap) {
     var totalDowntimeMergedMs = 0;
     var latestOccurMs = 0;
 
-    // SKIP: Site tanpa alarm sama sekali — hemat JS command quota secara drastis
-    if (item.totalAlarms === 0 && item.activeAlarms === 0 && item.intervals.length === 0) {
-        continue;
+    if (item.totalAlarms > 0 || totalDowntimeMergedMs > 0) {
+        // Site terpengaruh gangguan (mengalami downtime) dalam periode tanggal ini
     }
 
     if (item.intervals.length > 0) {
