@@ -379,8 +379,7 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
-    "WHERE ((firstinserttime <= '" + endISO + "' AND (cleartime >= '" + startISO + "' OR cleartime = '0' OR cleartime IS NULL OR cleartime = '')) " +
-    "OR (firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0))) " +
+    "WHERE (firstinserttime <= " + windowEndMs + " AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL OR cleartime = '' OR cleartime = '0')) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1) AND (domain = '1001' OR domain = 1001)" + siteInClause;
 
 var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
