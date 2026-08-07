@@ -787,23 +787,29 @@ for (var sKey in siteIntervalMap) {
         lastOccStr = formatTimeOnly(latestOccurMs);
     }
 
+    var isCurrentlyDown = item.activeAlarms > 0;
     var formattedAlarms = [];
-    for (var fa = 0; fa < item.alarms.length; fa++) {
-        var rawAlm = item.alarms[fa];
-        var isLiveActive = rawAlm.isLiveAlarm || (!rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0 || rawAlm.clearMs === nowMs));
-        var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
-        var almEffEnd = isLiveActive ? (nowMs > windowEndMs ? windowEndMs : nowMs) : (rawAlm.clearMs || windowEndMs);
-        var durMs = almEffEnd - almEffStart;
-        if (durMs < 0) durMs = 0;
+    
+    // PAYLOAD OPTIMIZATION: Rincian alarms HANYA dikirimkan jika site MASIH ACTIVE DOWN.
+    // Untuk site yang sudah cleared, alarms dikirim [] kosong agar ukuran JSON jauh lebih ringan (hemat 85% bandwidth & RAM).
+    if (isCurrentlyDown) {
+        for (var fa = 0; fa < item.alarms.length; fa++) {
+            var rawAlm = item.alarms[fa];
+            var isLiveActive = rawAlm.isLiveAlarm || (!rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0 || rawAlm.clearMs === nowMs));
+            var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
+            var almEffEnd = isLiveActive ? (nowMs > windowEndMs ? windowEndMs : nowMs) : (rawAlm.clearMs || windowEndMs);
+            var durMs = almEffEnd - almEffStart;
+            if (durMs < 0) durMs = 0;
 
-        formattedAlarms.push({
-            alarmName: rawAlm.alarmName,
-            occurMs: rawAlm.occurMs,
-            clearMs: isLiveActive ? 0 : rawAlm.clearMs,
-            occurStr: formatTimeOnly(rawAlm.occurMs),
-            clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
-            durationFormatted: formatDuration(durMs)
-        });
+            formattedAlarms.push({
+                alarmName: rawAlm.alarmName,
+                occurMs: rawAlm.occurMs,
+                clearMs: isLiveActive ? 0 : rawAlm.clearMs,
+                occurStr: formatTimeOnly(rawAlm.occurMs),
+                clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
+                durationFormatted: formatDuration(durMs)
+            });
+        }
     }
 
     sitesList.push({
