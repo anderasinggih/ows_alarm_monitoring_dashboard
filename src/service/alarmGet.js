@@ -371,25 +371,9 @@ var historyTql = "SELECT sitecode, logicsiteid, sitename, sitedownfault, firstin
     "AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var ttTql = "SELECT sitename, acc_root_cause_site_name, orderidview, sourceticketid, faultno, eventno, ticketid, orderid, id, root_cause, rootcause, level_one_root_cause, sub_root_cause, subcause, level_two_root_cause, subsolutiontype, businessstatus, createtime, processdefkey, current_phase, operate_phase, ticketstatus FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
-    "WHERE (createtime >= '" + startISO + "' AND createtime <= '" + endISO + "') " +
-    "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
-var bsTql = "SELECT id, optionlabel FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
-
+// alarmGet (summary only) - TIDAK query TT & BS untuk hemat JS command quota
 var liveRows = queryByTql(liveTql, {}, 5000);
-var historyRows = queryByTql(historyTql, {}, 0);
-var ttRows = queryByTql(ttTql, {}, 1000);
-var bsRows = queryByTql(bsTql, {}, 200);
-
-var bsStatusMap = {};
-for (var bs = 0; bs < bsRows.length; bs++) {
-    var bsRow = bsRows[bs];
-    var bsId = extractOWSField(bsRow.id);
-    var bsLabel = extractOWSField(bsRow.optionlabel);
-    if (bsId && bsLabel) {
-        bsStatusMap[bsId] = bsLabel;
-    }
-}
+var historyRows = queryByTql(historyTql, {}, 5000); // limit 5000, bukan unlimited
 
 var ttDateIndexMap = {};
 
@@ -407,74 +391,7 @@ function getLocalDateStr(msOrStr) {
     return '';
 }
 
-for (var t = 0; t < ttRows.length; t++) {
-    var ttRow = ttRows[t];
-    var tSite = extractOWSField(ttRow.sitename || ttRow.acc_root_cause_site_name);
-    if (!tSite) continue;
-
-    var tId = extractOWSField(ttRow.orderidview || ttRow.sourceticketid || ttRow.faultno || ttRow.eventno || ttRow.ticketid);
-    if (!tId) continue;
-
-    var tRc = extractOWSField(ttRow.root_cause || ttRow.rootcause || ttRow.level_one_root_cause);
-    var tSubRc = extractOWSField(ttRow.sub_root_cause || ttRow.subcause || ttRow.level_two_root_cause || ttRow.subsolutiontype);
-
-    var tBsUuid = extractOWSField(ttRow.businessstatus);
-    var tBsLabel = (tBsUuid && bsStatusMap[tBsUuid]) ? bsStatusMap[tBsUuid] : '-';
-
-    var tCreateStr = extractOWSField(ttRow.createtime || '');
-    var tCreateMs = tCreateStr ? (new Date(tCreateStr.replace(' ', 'T'))).getTime() : 0;
-    if (isNaN(tCreateMs)) tCreateMs = 0;
-
-    var tDateStr = getLocalDateStr(tCreateStr) || getLocalDateStr(tCreateMs);
-
-    var tOrderId = extractOWSField(ttRow.orderidview || ttRow.orderid || ttRow.sourceticketid || tId);
-    var tTicketUuid = extractOWSField(ttRow.ticketid || ttRow.id || ttRow.ticket_id);
-    var tProcessDefKey = extractOWSField(ttRow.processdefkey) || "ID_799_1510131121023";
-    var tCurrentPhase = extractOWSField(ttRow.current_phase || ttRow.operate_phase) || "Handle TT";
-    var tOrderStatus = extractOWSField(ttRow.ticketstatus) || "running";
-
-    var tUrl = "/adc-web/bpm/order-process/order-submit-panel.html?" +
-        "orderid=" + encodeURIComponent(tOrderId) +
-        "&processdefkey=" + encodeURIComponent(tProcessDefKey) +
-        "&ticketid=" + encodeURIComponent(tTicketUuid) +
-        "&currentphase=" + encodeURIComponent(tCurrentPhase) +
-        "&processstatus=" + encodeURIComponent(tOrderStatus) +
-        "&app_name=TroubleTicket&module_name=TroubleTicket&is_archived=false" +
-        "&process_name=" + encodeURIComponent(tProcessDefKey) +
-        "&order_status=" + encodeURIComponent(tOrderStatus);
-
-    var ttEntry = {
-        ticketId: tId,
-        orderId: tOrderId,
-        ticketUuid: tTicketUuid,
-        ticketUrl: tUrl,
-        createtimeMs: tCreateMs,
-        createtimeStr: tCreateStr || '-',
-        rootCause: tRc || '-',
-        subRootCause: tSubRc || '-',
-        businessstatusLabel: tBsLabel
-    };
-
-    if (tDateStr) {
-        var compositeKey = tSite + "_" + tDateStr;
-        if (!ttDateIndexMap[compositeKey]) {
-            ttDateIndexMap[compositeKey] = [];
-        }
-        ttDateIndexMap[compositeKey].push(ttEntry);
-    }
-}
-
-function getSiteTickets(siteName, firstOccurMs) {
-    if (!siteName || !firstOccurMs || firstOccurMs <= 0) return [];
-    var dateStr = getLocalDateStr(firstOccurMs);
-    if (!dateStr) return [];
-    
-    var compositeKey = siteName + "_" + dateStr;
-    var list = ttDateIndexMap[compositeKey];
-    if (!list || list.length === 0) return [];
-    
-    return list;
-}
+function getSiteTickets() { return []; } // disabled in summary service
 
 function getVendorLabelFromRecord(record) {
     if (!record) return '-';
@@ -771,29 +688,7 @@ for (var sKey in siteIntervalMap) {
         lastOccStr = formatTimeOnly(latestOccurMs);
     }
 
-    var isCurrentlyDown = item.activeAlarms > 0;
-    var formattedAlarms = [];
-    
-    if (isCurrentlyDown) {
-        for (var fa = 0; fa < item.alarms.length; fa++) {
-            var rawAlm = item.alarms[fa];
-            var isLiveActive = rawAlm.isLiveAlarm || (!rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0 || rawAlm.clearMs === nowMs));
-            var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
-            var almEffEnd = isLiveActive ? (nowMs > windowEndMs ? windowEndMs : nowMs) : (rawAlm.clearMs || windowEndMs);
-            var durMs = almEffEnd - almEffStart;
-            if (durMs < 0) durMs = 0;
-
-            formattedAlarms.push({
-                alarmName: rawAlm.alarmName,
-                occurMs: rawAlm.occurMs,
-                clearMs: isLiveActive ? 0 : rawAlm.clearMs,
-                occurStr: formatTimeOnly(rawAlm.occurMs),
-                clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
-                durationFormatted: formatDuration(durMs)
-            });
-        }
-    }
-
+    // Summary service: skip formattedAlarms & tickets building (hemat JS commands)
     sitesList.push({
         siteName: item.siteName,
         siteId: item.siteId || '-',
@@ -801,8 +696,6 @@ for (var sKey in siteIntervalMap) {
         regionId: item.regionId || '-',
         vendorLabel: item.vendorLabel || '-',
         vendorId: item.vendorId || '-',
-        onAirMs: item.onAirMs || 0,
-        onAirStr: item.onAirStr || (item.onAirMs ? formatTimeOnly(item.onAirMs) : '-'),
         totalAlarms: item.totalAlarms,
         activeAlarms: item.activeAlarms,
         downtimeMs: totalDowntimeMergedMs,
@@ -813,9 +706,7 @@ for (var sKey in siteIntervalMap) {
         lastOccurrenceStr: lastOccStr,
         isDown: item.activeAlarms > 0,
         isCurrentlyDown: item.activeAlarms > 0,
-        hasHistoricalDowntime: totalDowntimeMergedMs > 0,
-        alarms: formattedAlarms,
-        tickets: totalDowntimeMergedMs > 0 ? getSiteTickets(item.siteName, item.firstOccurMs || 0) : []
+        hasHistoricalDowntime: totalDowntimeMergedMs > 0
     });
 }
 
