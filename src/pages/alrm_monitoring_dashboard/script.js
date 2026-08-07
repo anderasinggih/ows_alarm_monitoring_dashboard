@@ -439,12 +439,13 @@ function renderKPIStats() {
 
     for (var i = 0; i < sitesToCalc.length; i++) {
         var s = sitesToCalc[i];
-        if (s.totalAlarms > 0) {
-            totalAlarms += s.totalAlarms;
+        totalAlarms += (s.totalAlarms || 0);
+
+        if (s.activeAlarms > 0 || s.isDown || s.isCurrentlyDown) {
             activeDownSites += 1;
         }
 
-        if (s.downtimeMs > 0 || (s.alarms && s.alarms.length > 0) || s.totalAlarms > 0) {
+        if (s.downtimeMs > 0 || (s.alarms && s.alarms.length > 0) || (s.totalAlarms && s.totalAlarms > 0)) {
             sitesAffected += 1;
         }
 

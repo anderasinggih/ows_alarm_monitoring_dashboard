@@ -584,6 +584,7 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
             onAirMs: cOnAirMs,
             onAirStr: cOnAirStr,
             totalAlarms: 0,
+            activeAlarms: 0,
             intervals: [],
             alarms: [],
             firstOccurMs: 0
@@ -625,9 +626,10 @@ for (var l = 0; l < liveRows.length; l++) {
     var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
     var isLiveActive = (rawClearL === 0);
 
+    totalAlarmCountAccumulated++;
+    siteIntervalMap[targetSiteKeyL].totalAlarms += 1;
     if (isLiveActive) {
-        totalAlarmCountAccumulated++;
-        siteIntervalMap[targetSiteKeyL].totalAlarms += 1;
+        siteIntervalMap[targetSiteKeyL].activeAlarms += 1;
     }
 
     var startL = parseOWSTimestamp(alarmL.firstinserttime || alarmL.eventtime || alarmL.event_time, windowStartMs);
@@ -672,6 +674,12 @@ for (var h = 0; h < historyRows.length; h++) {
         var alarmNameH = extractOWSField(alarmH.alarmname || alarmH.alarm_name || alarmH.rawalarmname || 'Site Down Alarm');
 
         if (effEnd > effStart) {
+            totalAlarmCountAccumulated++;
+            siteIntervalMap[targetSiteKeyH].totalAlarms += 1;
+            if (!isHistoryCleared) {
+                siteIntervalMap[targetSiteKeyH].activeAlarms += 1;
+            }
+
             if (startH > 0 && (siteIntervalMap[targetSiteKeyH].firstOccurMs === 0 || startH < siteIntervalMap[targetSiteKeyH].firstOccurMs)) {
                 siteIntervalMap[targetSiteKeyH].firstOccurMs = startH;
             }
@@ -749,7 +757,7 @@ for (var sKey in siteIntervalMap) {
     if (totalDowntimeMergedMs > 0 || item.alarms.length > 0) {
         affectedSitesCount++;
     }
-    if (item.totalAlarms > 0) {
+    if (item.activeAlarms > 0) {
         activeDownSitesCount++;
     }
 
@@ -799,14 +807,15 @@ for (var sKey in siteIntervalMap) {
         onAirMs: item.onAirMs || 0,
         onAirStr: item.onAirStr || (item.onAirMs ? formatTimeOnly(item.onAirMs) : '-'),
         totalAlarms: item.totalAlarms,
+        activeAlarms: item.activeAlarms,
         downtimeMs: totalDowntimeMergedMs,
         lastOccurrenceMs: latestOccurMs,
         downtimeFormatted: formatDuration(totalDowntimeMergedMs),
         availableFormatted: formatDuration(availableMs),
         availRatePct: availRate,
         lastOccurrenceStr: lastOccStr,
-        isDown: item.totalAlarms > 0,
-        isCurrentlyDown: item.totalAlarms > 0,
+        isDown: item.activeAlarms > 0,
+        isCurrentlyDown: item.activeAlarms > 0,
         hasHistoricalDowntime: totalDowntimeMergedMs > 0,
         alarms: formattedAlarms, // Detail daftar alarm per site yang sudah diformat lazily
         tickets: totalDowntimeMergedMs > 0 ? getSiteTickets(item.siteName, item.firstOccurMs || 0) : []
@@ -815,8 +824,8 @@ for (var sKey in siteIntervalMap) {
 
 // URUTKAN SITES: Utamakan Active Down Sites di atas, lalu urutkan berdasarkan Tanggal Kejadian Terbaru
 sitesList.sort(function (a, b) {
-    var aActive = (a.totalAlarms > 0) ? 1 : 0;
-    var bActive = (b.totalAlarms > 0) ? 1 : 0;
+    var aActive = (a.activeAlarms > 0) ? 1 : 0;
+    var bActive = (b.activeAlarms > 0) ? 1 : 0;
     if (aActive !== bActive) return bActive - aActive;
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
