@@ -1,0 +1,30 @@
+import { MessageProcessor } from "@adc/vigour-ui/lib/spl";
+
+export function getTicketOpenAnalysis() {
+    var todayDate = new Date();
+
+    const year = todayDate.getFullYear();
+    const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+    const day = String(todayDate.getDate()).padStart(2, '0');
+
+    const formattedDate = `${year}-${month}-${day}`;
+    const formattedDateStart = `${year}-${month}-${day-1}`;
+
+    return new Promise((resolve, reject) => {
+        MessageProcessor.process({
+            serviceId: '/netdrone_maps_v3/netdrone_maps_v4/netdrone_maps_v4_get_ticket_open_analysis',
+            data: {
+                start_time: `${formattedDate} 00:00:00`,
+                end_time: `${formattedDate} 23:59:59`
+            },
+            showErrorMessage: false,
+            success: (json) => {
+                resolve({ res:json });
+            },
+            error: (error) => {
+                console.error(error, 'error get duration range');
+                reject(error);
+            }
+        });
+    });
+}

@@ -622,27 +622,34 @@ for (var l = 0; l < liveRows.length; l++) {
     var targetSiteKeyL = findMatchingSiteKey(alarmL);
     if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
 
-    totalAlarmCountAccumulated++;
+    var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
+    var isLiveActive = (rawClearL === 0);
+
+    if (isLiveActive) {
+        totalAlarmCountAccumulated++;
+        siteIntervalMap[targetSiteKeyL].totalAlarms += 1;
+    }
 
     var startL = parseOWSTimestamp(alarmL.firstinserttime || alarmL.eventtime || alarmL.event_time, windowStartMs);
     var effStartL = startL < windowStartMs ? windowStartMs : startL;
-    var effectiveEndL = (windowEndMs > nowMs) ? nowMs : windowEndMs;
-    var endL = effectiveEndL;
+    var effEndL = isLiveActive ? ((windowEndMs > nowMs) ? nowMs : windowEndMs) : (rawClearL > windowEndMs ? windowEndMs : rawClearL);
     var alarmNameL = extractOWSField(alarmL.alarmname || alarmL.alarm_name || alarmL.rawalarmname || 'Site Down Alarm');
 
     if (startL > 0 && (siteIntervalMap[targetSiteKeyL].firstOccurMs === 0 || startL < siteIntervalMap[targetSiteKeyL].firstOccurMs)) {
         siteIntervalMap[targetSiteKeyL].firstOccurMs = startL;
     }
 
-    siteIntervalMap[targetSiteKeyL].totalAlarms += 1;
-    siteIntervalMap[targetSiteKeyL].intervals.push({ start: effStartL, end: endL });
+    if (effEndL > effStartL) {
+        siteIntervalMap[targetSiteKeyL].intervals.push({ start: effStartL, end: effEndL });
+    }
+
     siteIntervalMap[targetSiteKeyL].alarms.push({
         alarmName: alarmNameL,
         occurMs: startL,
-        clearMs: endL,
+        clearMs: isLiveActive ? 0 : rawClearL,
         effStart: effStartL,
-        isLiveAlarm: true,
-        isHistoryCleared: false
+        isLiveAlarm: isLiveActive,
+        isHistoryCleared: !isLiveActive
     });
 }
 

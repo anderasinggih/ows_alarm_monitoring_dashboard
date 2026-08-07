@@ -1,0 +1,12 @@
+export var map;
+export var infoWindow;
+export var infoWindow2;
+export var infoWindow3;
+export let mapFMe;
+export let coverageCluster = null;
+export let coverageFme = null;
+export let coverageSite = null;
+export let siteSearchMarker = null;
+export let fmeSearchMarker = null;
+export let fmeSelectMarker = null;
+export let coverageMcCluster = null;

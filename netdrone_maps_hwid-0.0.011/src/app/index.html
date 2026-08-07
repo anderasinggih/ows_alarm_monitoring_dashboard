@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="app-version" content="<%= htmlWebpackPlugin.options.appVersion %>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+  <!-- TITLE -->
+  <title>Netdrone</title>
+
+  <!-- FAVICON -->
+  <link rel="icon" type="image/x-icon" href="../assets/favicon/favicon.ico">
+
+  <!-- Bootstrap Icon -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    
+  <!-- Bootstrap 5.3.2 -->
+  <link  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+  <!-- VUE MULTI SELECT -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vue-multiselect@3.0.0/dist/vue-multiselect.min.css">
+  
+  <!-- FONT -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.14.0/themes/base/jquery-ui.css">
+
+  <!-- <script src='https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.17/index.global.min.js'></script>
+  <script>
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var calendarEl = document.getElementById('calendar');
+      var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'resourceTimelineWeek'
+      });
+      calendar.render();
+    });
+
+  </script> -->
+
+  <!-- FullCalendar Scheduler CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.17/index.global.min.css" rel="stylesheet" />
+
+<!-- FullCalendar Scheduler JS -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.17/index.global.min.js"></script>
+
+
+  
+  <!-- LEAFLET -->
+  <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/> -->
+  
+  <%
+    const procodeConfig = htmlWebpackPlugin?.options?.procodeConfig;
+    if(procodeConfig?.customComponentScriptList) {
+      for (let i = 0; i < procodeConfig?.customComponentScriptList?.length; i++) {
+      const scriptUrl = procodeConfig?.customComponentScriptList[i];
+  %>
+
+  <script src="<%= scriptUrl %>"></script>
+
+  <% }}
+
+    if(procodeConfig?.jsLibScriptList) {
+        for (let i = 0; i < procodeConfig?.jsLibScriptList?.length; i++) {
+        const jsScriptUrl = procodeConfig?.jsLibScriptList[i];
+  %>
+
+  <script src="<%= jsScriptUrl %>"></script>
+
+  <% }}
+
+    if(procodeConfig?.jsLibStyleList) {
+        for (let i = 0; i < procodeConfig?.jsLibStyleList?.length; i++) {
+        const jsStyleUrl = procodeConfig?.jsLibStyleList[i];
+  %>
+
+  <link rel="stylesheet" href="<%= jsStyleUrl %>"></link>
+
+  <% }}
+
+  %>
+
+</head>
+<body>
+  <div id="app" ref="viewport" class="viewport"></div>
+  <!-- LEAFLET -->
+  <!-- <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script> -->
+
+  <!-- PETAL -->
+  <script type="application/javascript" src="https://mapapi.cloud.huawei.com/mapjs/v1/api/js?callback=initMap&key=DAEDACIowRf%2Bogo1yxeyr%2BFtqKU0BgibFfePafHkroVkGrR%2B9H2yyloNgWsfA35HR%2B9%2FgLQYix3XaqgefX2HRZoStYzLq4uhMEozzg%3D%3D"></script>
+
+  <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBZJZ7wB4FyP0JZDGYOqVslZJRZ0vhlDno"></script> -->
+
+  <!-- JQUERY -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <!-- Bootstrap & POPPER -->
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
+
+</body>
+</html>

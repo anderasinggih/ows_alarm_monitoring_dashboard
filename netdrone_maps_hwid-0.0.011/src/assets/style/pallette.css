@@ -1,0 +1,231 @@
+:root {
+    /* Font Family */
+    --font-inter: inter;
+
+    /* Font Weight */
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extra-bold: 800;
+    --font-weight-black: 900;
+
+    /* Font Size */
+    --font-size-h1: 96px;
+    --font-size-h2: 60px;
+    --font-size-h3: 48px;
+    --font-size-h4: 34px;
+    --font-size-h5: 24px;
+    --font-size-h6: 20px;
+    --font-size-sub: 18px;
+    --font-size-body-1: 16px;
+    --font-size-body-2: 14px;
+    --font-size-caption: 12px;
+    --font-size-overline: 10px;
+
+    /* ----------Color---------- */
+
+    /* Rose */
+    --color-rose-50: #F9F2F3;
+    --color-rose-100: #F3DADA;
+    --color-rose-200: #EFBCC5;
+    --color-rose-300: #EF93A7;
+    --color-rose-400: #F46087;
+    --color-rose-500: #E61886;
+    --color-rose-600: #AD184D;
+    --color-rose-700: #811439;
+    --color-rose-800: #540D24;
+    --color-rose-900: #330614;
+
+    /* Red */
+    --color-red-50: #F9F2F2;
+    --color-red-100: #F3DADA;
+    --color-red-200: #F0BDBD;
+    --color-red-300: #F09596;
+    --color-red-400: #F46465;
+    --color-red-500: #EB171F;
+    --color-red-600: #B2161B;
+    --color-red-700: #841316;
+    --color-red-800: #570C0D;
+    --color-red-900: #350506;
+
+    /* Orange */
+    --color-orange-50: #FDF1EF;
+    --color-orange-100: #FCD8CE;
+    --color-orange-200: #FABAAA;
+    --color-orange-300: #FC916E;
+    --color-orange-400: #F36900;
+    --color-orange-500: #C45613;
+    --color-orange-600: #944114;
+    --color-orange-700: #6E3011;
+    --color-orange-800: #471E0B;
+    --color-orange-900: #2B1005;
+
+    /* Yellow */
+    --color-yellow-50: #FDF2E5;
+    --color-yellow-100: #FCDBAA;
+    --color-yellow-200: #FDC000;
+    --color-yellow-300: #DAA61B;
+    --color-yellow-400: #B98C1D;
+    --color-yellow-500: #96711B;
+    --color-yellow-600: #715516;
+    --color-yellow-700: #543F0F;
+    --color-yellow-800: #362807;
+    --color-yellow-900: #362807;
+
+    /* Green */
+    --color-green-50: #EEF6EB;
+    --color-green-100: #BCEDAC;
+    --color-green-200: #97DA7E;
+    --color-green-300: #71C14C;
+    --color-green-400: #4FA700;
+    --color-green-500: #478625;
+    --color-green-600: #376422;
+    --color-green-700: #2A4A1C;
+    --color-green-800: #1A2F12;
+    --color-green-900: #0F1B0A;
+
+    /* Mint */
+    --color-mint-50: #ECF6F1;
+    --color-mint-100: #AFEDCE;
+    --color-mint-200: #82DBB1;
+    --color-mint-300: #50C291;
+    --color-mint-400: #00A874;
+    --color-mint-500: #278661;
+    --color-mint-600: #236549;
+    --color-mint-700: #1D4A37;
+    --color-mint-800: #1B2B21;
+    --color-mint-900: #0B1B13;
+
+    /* Cyan */
+    --color-cyan-50: #EFF4F6;
+    --color-cyan-100: #C6E5EC;
+    --color-cyan-200: #87D5E5;
+    --color-cyan-300: #54BCCE;
+    --color-cyan-400: #00A2B5;
+    --color-cyan-500: #2A8290;
+    --color-cyan-600: #26616B;
+    --color-cyan-700: #1F484F;
+    --color-cyan-800: #152E32;
+    --color-cyan-900: #0C1A1C;
+
+    /* Blue */
+    --color-blue-50: #F4F3F9;
+    --color-blue-100: #DBDFF2;
+    --color-blue-200: #BFC8EE;
+    --color-blue-300: #99ABED;
+    --color-blue-400: #6D8FF0;
+    --color-blue-500: #2070F3;
+    --color-blue-600: #1F55B5;
+    --color-blue-700: #1B3F86;
+    --color-blue-800: #112857;
+    --color-blue-900: #081635;
+
+    /* Indigo */
+    --color-indigo-50: #F3F3F9;
+    --color-indigo-100: #DFDEF2;
+    --color-indigo-200: #C9C5EE;
+    --color-indigo-300: #ADA6ED;
+    --color-indigo-400: #9185F0;
+    --color-indigo-500: #745EF7;
+    --color-indigo-600: #5531EB;
+    --color-indigo-700: #3F21B5;
+    --color-indigo-800: #281675;
+    --color-indigo-900: #160B48;
+
+    /* Purple */
+    --color-purple-50: #F6F2F9;
+    --color-purple-100: #E7DBF2;
+    --color-purple-200: #D8C0EE;
+    --color-purple-300: #C99CED;
+    --color-purple-400: #BD72F0;
+    --color-purple-500: #B62BF7;
+    --color-purple-600: #8A21BC;
+    --color-purple-700: #651B8B;
+    --color-purple-800: #41125A;
+    --color-purple-900: #260937;
+
+    /* Pink */
+    --color-pink-50: #F9F1F7;
+    --color-pink-100: #F2D8EC;
+    --color-pink-200: #EFB9E3;
+    --color-pink-300: #EE8DDB;
+    --color-pink-400: #F14FD8;
+    --color-pink-500: #D41DBC;
+    --color-pink-600: #9F1C8D;
+    --color-pink-700: #751868;
+    --color-pink-800: #4C0F43;
+    --color-pink-900: #2E0728;
+
+    /* Brand */
+    --color-brand-50: #D0E7FF;
+    --color-brand-100: #B9DBFF;
+    --color-brand-200: #8BC3FF;
+    --color-brand-300: #5CACFF;
+    --color-brand-400: #2E94FF;
+    --color-brand-500: #007DFF;
+    --color-brand-600: #0072E8;
+    --color-brand-700: #0067D1;
+    --color-brand-800: #005BBA;
+    --color-brand-900: #0050A3;
+
+    /* Gray */
+    --color-gray-0: #FFFFFF;
+    --color-gray-50: #F5F5F5;
+    --color-gray-100: #EEEEEE;
+    --color-gray-200: #BBBBBB;
+    --color-gray-300: #939393;
+    --color-gray-400: #818181;
+    --color-gray-500: #676767;
+    --color-gray-600: #4E4E4E;
+    --color-gray-700: #393939;
+    --color-gray-800: #272727;
+    --color-gray-900: #191919;
+    --color-gray-1000: #000000;
+
+    /* ----------Functional Color---------- */
+    --color-background-page: #F5F5F580;
+    --color-background-navbar: #141414;
+    --color-huawei: #C7000B;
+    --color-text: #191919;
+    --color-link: #0067D1;
+    --color-border: #19191933;
+    --color-error: #B2161B;
+    --color-success: #00A874;
+    --color-warning: #FDC000;
+    --color-alert: #F36900;
+    --color-info: #2070F3;
+
+    /* ----------Shadow---------- */
+    --shadow-sm: 0px 1px 6px 0px rgba(0, 0, 0, 8);
+    --shadow: 0px 4px 12px 0px rgba(0, 0, 0, 8);
+    --shadow-md: 0px 4px 12px 0px rgba(0, 0, 0, 16);
+    --shadow-lg: 0px 8px 24 0px rgba(0, 0, 0, 16);
+    --shadow-xl: 0px 16px 48 0px rgba(0, 0, 0, 16);
+    --shadow-r-sm: 1px 6px 0px 0px rgba(0, 0, 0, 8);
+    --shadow-t-sm: 0px -1px 6px 0px rgba(0, 0, 0, 8);
+    --shadow-l: -2px 12px 0px 0px rgba(0, 0, 0, 8);
+
+    /* ----------Border Radius---------- */
+    --radius-none: 0px;
+    --radius-sm: 2px;
+    --radius-rounded: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-full: 999px;
+
+    /* ----------Opacity---------- */
+    --opacity-5: 0.05;
+    --opacity-10: 0.1;
+    --opacity-20: 0.2;
+    --opacity-25: 0.25;
+    --opacity-50: 0.5;
+    --opacity-75: 0.75;
+
+    /* ----------Border Width---------- */
+    --border-width-1: 1px;
+    --border-width-2: 2px;
+    --border-width-4: 4px;
+    --border-width-8: 8px;
+}

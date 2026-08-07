@@ -1,0 +1,11 @@
+{
+    "prettier.printWidth": 350,
+    "prettier.tabWidth": 4,
+    "prettier.useTabs": true,
+    "prettier.vueIndentScriptAndStyle": false,
+    "prettier.withNodeModules": true,
+    "vue.server.petiteVue.supportHtmlFile": true,
+    "prettier.singleQuote": true,
+    "prettier.singleAttributePerLine": true,
+    "emmet.includeLanguages": { "javascript":"javascriptreact" }
+}
