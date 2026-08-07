@@ -2,11 +2,9 @@
  * OWS GDE Studio - Alarm Monitoring RunScript Backend (alarmGet / alrmget)
  */
 
-
 function getPropIC(obj, propName) {
     if (!obj || typeof obj !== 'object') return '';
     if (obj[propName] !== undefined && obj[propName] !== null) return obj[propName];
-    // Trimmed matching for OWS API fields with leading spaces (e.g., ' site_id')
     var target = propName.trim().toLowerCase();
     for (var k in obj) {
         if (k.trim().toLowerCase() === target) {
@@ -43,7 +41,6 @@ function parseOWSTimestamp(val, defaultFallback) {
     var str = extractOWSField(val);
     if (!str) return defaultFallback || 0;
 
-    // 1. Standard ISO string format parse: YYYY-MM-DD HH:mm:ss or YYYY-MM-DDTHH:mm:ss
     if (str.indexOf('-') !== -1 || str.indexOf('/') !== -1) {
         var cleanStr = str.trim().replace(' ', 'T');
         if (cleanStr.indexOf('Z') === -1 && cleanStr.indexOf('+') === -1 && cleanStr.lastIndexOf('-') <= 7) {
@@ -55,10 +52,8 @@ function parseOWSTimestamp(val, defaultFallback) {
         }
     }
 
-    // 2. Check if it is a pure numeric epoch timestamp
     var num = parseFloat(str);
     if (!isNaN(num) && num > 0) {
-        // If timestamp is in seconds (10 digits), convert to milliseconds
         if (num < 10000000000) return num * 1000;
         return num;
     }
@@ -80,7 +75,6 @@ function queryByTql(tql, parameters, customMaxLimit) {
     var allRows = [];
     var start = 0;
     var pageSize = 1000;
-    // customMaxLimit = 0 berarti UNLIMITED (loop sampai DB habis secara natural)
     var isUnlimited = (customMaxLimit === 0);
     var maxRowsLimit = isUnlimited ? Infinity : (customMaxLimit || 5000);
 
@@ -108,7 +102,7 @@ function queryByTql(tql, parameters, customMaxLimit) {
             allRows = allRows.concat(pageRows);
 
             if (pageRows.length < pageSize) {
-                break; // Halaman terakhir — data habis secara natural
+                break;
             }
 
             start += pageSize;
@@ -136,7 +130,6 @@ function formatDuration(ms) {
 }
 
 function formatISODate(dateObj) {
-    // Convert to WIB (UTC+7)
     var utcMs = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
     var wibDate = new Date(utcMs + (7 * 60 * 60 * 1000));
     var yyyy = wibDate.getFullYear();
@@ -155,7 +148,6 @@ function formatISODate(dateObj) {
 
 function formatTimeOnly(ms) {
     if (!ms) return "-";
-    // Convert to WIB (UTC+7)
     var dateObj = new Date(Number(ms));
     var utcMs = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
     var wibDate = new Date(utcMs + (7 * 60 * 60 * 1000));
@@ -198,7 +190,9 @@ function mergeOverlappingIntervals(intervals) {
     return merged;
 }
 
+// ==========================================
 // 1. READ INPUT PARAMETERS
+// ==========================================
 var inputObj = typeof input !== 'undefined' ? input : (typeof _message !== 'undefined' ? _message : {});
 if (inputObj._values && Array.isArray(inputObj._values) && inputObj._values.length > 0) {
     inputObj = inputObj._values[0];
@@ -221,7 +215,6 @@ var WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 var nowObj = new Date();
 var nowMs = nowObj.getTime();
 
-// Calculate current date/time in WIB (UTC+7) regardless of server local timezone
 var wibNowMs = nowMs + (nowObj.getTimezoneOffset() * 60000) + WIB_OFFSET_MS;
 var wibNowDate = new Date(wibNowMs);
 
@@ -229,7 +222,6 @@ var wibYear = wibNowDate.getUTCFullYear();
 var wibMonth = wibNowDate.getUTCMonth();
 var wibDay = wibNowDate.getUTCDate();
 
-// Absolute Epoch MS for 00:00:00 WIB and 23:59:59 WIB today
 var todayStartWIBMs = Date.UTC(wibYear, wibMonth, wibDay, 0, 0, 0, 0) - WIB_OFFSET_MS;
 var todayEndWIBMs = Date.UTC(wibYear, wibMonth, wibDay, 23, 59, 59, 999) - WIB_OFFSET_MS;
 
@@ -265,7 +257,6 @@ function parseDateTimeInputWIB(str, isEnd) {
     return isEnd ? todayEndWIBMs : todayStartWIBMs;
 }
 
-// Default to TODAY WIB MODE (00:00:00 WIB to 23:59:59 WIB Today) if no startDate and endDate provided
 if (startDateStr === "" && endDateStr === "") {
     windowStartMs = todayStartWIBMs;
     windowEndMs = todayEndWIBMs;
@@ -280,7 +271,6 @@ if (startDateStr === "" && endDateStr === "") {
     windowEndMs = todayEndWIBMs;
 }
 
-// SAFEGUARD: Jika startDate > endDate (misal user kebalik memasukkan tanggal di API), otomatis tukar agar valid
 if (windowStartMs > windowEndMs) {
     var tempMs = windowStartMs;
     windowStartMs = windowEndMs;
@@ -294,13 +284,14 @@ var execStartMs = new Date().getTime();
 var startISO = formatISODate(new Date(windowStartMs));
 var endISO = formatISODate(new Date(windowEndMs));
 
-// 1. FETCH LOOKUP CMDB MAPS FIRST (REGION & VENDOR)
+// ==========================================
+// 2. FETCH LOOKUP CMDB MAPS FIRST (REGION & VENDOR)
+// ==========================================
 var vendorTql = "SELECT * FROM \"/datahub/cmdb/cmdb_vendor\"";
 var regionTql = "SELECT * FROM \"/datahub/cmdb/cmdb_region\"";
 var vendorRows = queryByTql(vendorTql, {}, 500);
 var regionRows = queryByTql(regionTql, {}, 500);
 
-// Build Region Map (UUID id -> region_name) & Reverse Map (region_name -> [UUID ids])
 var regionMap = {};
 var regionNameToIdsMap = {};
 for (var r = 0; r < regionRows.length; r++) {
@@ -315,7 +306,6 @@ for (var r = 0; r < regionRows.length; r++) {
     }
 }
 
-// Build Dynamic Vendor Map (UUID id -> vendor_name) & Reverse Map (vendor_name -> [UUID ids])
 var vendorMap = {};
 var vendorNameToIdsMap = {};
 for (var v = 0; v < vendorRows.length; v++) {
@@ -330,7 +320,9 @@ for (var v = 0; v < vendorRows.length; v++) {
     }
 }
 
-// 2. QUERY CMDB SITE FWA ON-AIR FIRST
+// ==========================================
+// 3. QUERY CMDB SITE FWA ON-AIR FIRST
+// ==========================================
 var siteTql = "SELECT * FROM \"/datahub/cmdb/cmdb_site\" " +
     "WHERE access_type = 'ce1d6700-f34d-11f0-80d8-0255ac12193b' " +
     "AND site_stage = 'f343d1fb-e165-11f0-90da-0255ac121938'";
@@ -360,7 +352,6 @@ if (searchQueryStr !== "") {
 
 var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
 
-// Collect All FWA Site IDs for Database Level IN Filtering (STRICT MURNI: site_id ONLY)
 var fwaSiteCodesList = [];
 for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     var cRow = cmdbSiteRows[cs];
@@ -370,7 +361,9 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
 
 var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSiteCodesList.join(",") + ")") : " AND sitecode IN ('__NO_MATCHING_SITES__')";
 
-// 2. QUERY LIVE & HISTORY ALARMS FILTERED BY FWA SITES AT DATABASE LEVEL (sitedownfault = '1')
+// ==========================================
+// 4. QUERY LIVE & HISTORY ALARMS
+// ==========================================
 var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
 var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
@@ -384,11 +377,10 @@ var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
 var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
 var liveRows = queryByTql(liveTql, {}, 5000);
-var historyRows = queryByTql(historyTql, {}, 0); // 0 = UNLIMITED: fetch semua baris history agar downtime terekap 100%
+var historyRows = queryByTql(historyTql, {}, 0);
 var ttRows = queryByTql(ttTql, {}, 1000);
 var bsRows = queryByTql(bsTql, {}, 200);
 
-// Build Business Status Label Map (UUID -> optionlabel)
 var bsStatusMap = {};
 for (var bs = 0; bs < bsRows.length; bs++) {
     var bsRow = bsRows[bs];
@@ -399,8 +391,6 @@ for (var bs = 0; bs < bsRows.length; bs++) {
     }
 }
 
-// Build Trouble Ticket Map: Composite Key Map (siteName_YYYY-MM-DD -> [tickets])
-// Eliminates O(N*M) nested date matching loops inside site list processing
 var ttDateIndexMap = {};
 
 function getLocalDateStr(msOrStr) {
@@ -525,16 +515,17 @@ function getSiteNameFromRecord(record) {
 }
 
 var siteIntervalMap = {};
-var siteIdToKeyMap = {}; // Maps cmdb site_id to primary cSiteName key
+var siteIdToKeyMap = {};
 var totalAlarmCountAccumulated = 0;
 
-// 1. PRE-POPULATE MASTER SITES FROM CMDB SITES (cmdbSiteRows)
+// ==========================================
+// 5. PRE-POPULATE MASTER SITES FROM CMDB SITES
+// ==========================================
 for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     var cRow = cmdbSiteRows[cs];
     var cSiteName = extractOWSField(getPropIC(cRow, 'site_name') || getPropIC(cRow, 'sitename') || getPropIC(cRow, 'name') || getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid') || getPropIC(cRow, 'site_code') || getPropIC(cRow, 'sitecode'));
     if (!cSiteName) continue;
 
-    // CMDB Site ID (Murni dari kolom site_id di cmdb_site)
     var cSiteId = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid') || getPropIC(cRow, 'keycode') || '-');
 
     var cVendorRaw = extractOWSField(getPropIC(cRow, 'vendor') || getPropIC(cRow, 'vendor_id'));
@@ -551,7 +542,6 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     }
     if (!cRegionName) cRegionName = '-';
 
-    // SERVER-SIDE BACKEND FILTERING: Region, Vendor, & Search Query
     if (selectedRegionStr !== "" && cRegionName.toLowerCase() !== selectedRegionStr.toLowerCase() && cRegionRaw.toLowerCase() !== selectedRegionStr.toLowerCase()) {
         continue;
     }
@@ -569,15 +559,13 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
         }
     }
 
-    // CMDB Site on_air_time Parsing
     var cOnAirStr = extractOWSField(getPropIC(cRow, 'on_air_time') || getPropIC(cRow, 'onairtime') || getPropIC(cRow, 'on_air_date'));
     if (!cOnAirStr) {
-        continue; // STRICT EXCLUDE: Site yang on_air_time nya NULL / KOSONG DILARANG TAMPIL & DILARANG DIHITUNG
+        continue;
     }
 
     var cOnAirMs = parseOWSTimestamp(cOnAirStr, 0);
 
-    // KETENTUAN SLA TELCO: Jika Site baru On-Air SETELAH windowEndMs (atau parsing gagal 0), site BELUM LAHIR pada periode ini (EXCLUDE)
     if (cOnAirMs === 0 || cOnAirMs > windowEndMs) {
         continue;
     }
@@ -600,7 +588,6 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
         };
     }
 
-    // Indeks seluruh identifier CMDB site (site_id, site_code, site_name) ke primary cSiteName key
     var cSiteId = extractOWSField(cRow.site_id || cRow.siteid);
     var cSiteCode = extractOWSField(cRow.site_code || cRow.sitecode);
 
@@ -614,11 +601,9 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
     }
 }
 
-// Helper cerdas menemukan Site Key di CMDB dari Record Alarm (STRICT MURNI: sitecode & site_id ONLY)
 function findMatchingSiteKey(alarmRecord) {
     if (!alarmRecord) return null;
     
-    // Strict Match dari sitecode / site_code / site_id / siteid
     var alarmCode = extractOWSField(getPropIC(alarmRecord, 'sitecode') || getPropIC(alarmRecord, 'site_code') || getPropIC(alarmRecord, 'site_id') || getPropIC(alarmRecord, 'siteid'));
     if (alarmCode && siteIdToKeyMap[alarmCode]) return siteIdToKeyMap[alarmCode];
     if (alarmCode && siteIdToKeyMap[alarmCode.toUpperCase()]) return siteIdToKeyMap[alarmCode.toUpperCase()];
@@ -626,11 +611,13 @@ function findMatchingSiteKey(alarmRecord) {
     return null;
 }
 
-// 2. STRICT LEFT JOIN LIVE ALARMS TO MASTER CMDB FWA SITES (site_code / site_id)
+// ==========================================
+// 6. PROCESS LIVE ALARMS
+// ==========================================
 for (var l = 0; l < liveRows.length; l++) {
     var alarmL = liveRows[l];
     var targetSiteKeyL = findMatchingSiteKey(alarmL);
-    if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
+    if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue;
 
     var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
     var isLiveActive = (rawClearL === 0);
@@ -664,19 +651,20 @@ for (var l = 0; l < liveRows.length; l++) {
     });
 }
 
-// 3. STRICT LEFT JOIN HISTORY ALARMS TO MASTER CMDB FWA SITES (site_code / site_id)
+// ==========================================
+// 7. PROCESS HISTORY ALARMS
+// ==========================================
 for (var h = 0; h < historyRows.length; h++) {
     var alarmH = historyRows[h];
     var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.firstoccurrence || alarmH.eventtime || alarmH.event_time, windowStartMs);
     var rawClearH = parseOWSTimestamp(alarmH.cleartime, 0);
 
-    // If cleartime is 0, null, or empty, alarm is NOT cleared yet (Active)
     var isHistoryCleared = rawClearH > 0;
     var endH = isHistoryCleared ? rawClearH : windowEndMs;
 
     if (startH <= windowEndMs && endH >= windowStartMs && startH > 0) {
         var targetSiteKeyH = findMatchingSiteKey(alarmH);
-        if (!targetSiteKeyH || !siteIntervalMap[targetSiteKeyH]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
+        if (!targetSiteKeyH || !siteIntervalMap[targetSiteKeyH]) continue;
 
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
@@ -705,7 +693,9 @@ for (var h = 0; h < historyRows.length; h++) {
     }
 }
 
-// 3. CALCULATE MERGED DOWNTIME & SLA AVAILABILITY PER SITE
+// ==========================================
+// 8. CALCULATE MERGED DOWNTIME & SLA AVAILABILITY PER SITE
+// ==========================================
 var sitesList = [];
 var affectedSitesCount = 0;
 var activeDownSitesCount = 0;
@@ -719,12 +709,7 @@ for (var sKey in siteIntervalMap) {
     var totalDowntimeMergedMs = 0;
     var latestOccurMs = 0;
 
-    if (item.totalAlarms > 0 || totalDowntimeMergedMs > 0) {
-        // Site terpengaruh gangguan (mengalami downtime) dalam periode tanggal ini
-    }
-
     if (item.intervals.length > 0) {
-
         var mergedIntervals = mergeOverlappingIntervals(item.intervals);
 
         for (var m = 0; m < mergedIntervals.length; m++) {
@@ -748,16 +733,14 @@ for (var sKey in siteIntervalMap) {
         }
     }
 
-    // HITUNG EFFECTIVE WINDOW SITE BERDASARKAN ON_AIR_TIME SECARA PRESISI (JAM & MENIT)
     var siteWindowStartMs = windowStartMs;
     if (item.onAirMs > 0 && item.onAirMs > windowStartMs) {
-        siteWindowStartMs = item.onAirMs; // Effective Start dimulai tepat dari jam/menit on_air_time!
+        siteWindowStartMs = item.onAirMs;
     }
 
-    // Jika filter mencakup hari ini, gunakan waktu detik ini (nowMs) sebagai batas akhir umur site saat ini
     var siteWindowEndMs = (windowEndMs > nowMs) ? nowMs : windowEndMs;
     var siteEffectiveWindowMs = siteWindowEndMs - siteWindowStartMs;
-    if (siteEffectiveWindowMs <= 0) siteEffectiveWindowMs = 1; // Safeguard division by zero
+    if (siteEffectiveWindowMs <= 0) siteEffectiveWindowMs = 1;
 
     if (totalDowntimeMergedMs > siteEffectiveWindowMs) {
         totalDowntimeMergedMs = siteEffectiveWindowMs;
@@ -790,8 +773,6 @@ for (var sKey in siteIntervalMap) {
     var isCurrentlyDown = item.activeAlarms > 0;
     var formattedAlarms = [];
     
-    // PAYLOAD OPTIMIZATION: Rincian alarms HANYA dikirimkan jika site MASIH ACTIVE DOWN.
-    // Untuk site yang sudah cleared, alarms dikirim [] kosong agar ukuran JSON jauh lebih ringan (hemat 85% bandwidth & RAM).
     if (isCurrentlyDown) {
         for (var fa = 0; fa < item.alarms.length; fa++) {
             var rawAlm = item.alarms[fa];
@@ -832,12 +813,11 @@ for (var sKey in siteIntervalMap) {
         isDown: item.activeAlarms > 0,
         isCurrentlyDown: item.activeAlarms > 0,
         hasHistoricalDowntime: totalDowntimeMergedMs > 0,
-        alarms: formattedAlarms, // Detail daftar alarm per site yang sudah diformat lazily
+        alarms: formattedAlarms,
         tickets: totalDowntimeMergedMs > 0 ? getSiteTickets(item.siteName, item.firstOccurMs || 0) : []
     });
 }
 
-// URUTKAN SITES: Utamakan Active Down Sites di atas, lalu urutkan berdasarkan Tanggal Kejadian Terbaru
 sitesList.sort(function (a, b) {
     var aActive = (a.activeAlarms > 0) ? 1 : 0;
     var bActive = (b.activeAlarms > 0) ? 1 : 0;
@@ -853,7 +833,7 @@ var totalExecDurationMs = execEndMs - execStartMs;
 return {
     result: {
         success: true,
-        message: "FWA Site Fault Alarm Dashboard loaded (All Sites CMDB Included).",
+        message: "FWA Site Fault Alarm Dashboard loaded.",
         queryParams: {
             startDate: startISO.substring(0, 10),
             endDate: endISO.substring(0, 10)
@@ -864,11 +844,7 @@ return {
             activeDownSites: activeDownSitesCount,
             avgAvailabilityPct: globalAvgAvailabilityPct,
             mostAffectedSite: mostAffectedSiteName,
-            mostAffectedSiteDowntime: mostAffectedSiteDowntime,
-            _debugMatchStats: {
-                rawLiveFetched: liveRows.length,
-                matchedLiveAlarms: totalAlarmCountAccumulated
-            }
+            mostAffectedSiteDowntime: mostAffectedSiteDowntime
         },
         pagination: {
             currentPage: reqPage,
@@ -885,4 +861,3 @@ return {
         }
     }
 };
-
