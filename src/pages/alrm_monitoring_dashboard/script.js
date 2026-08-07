@@ -1,3 +1,5 @@
+if (typeof JSON.parse !== 'function') { JSON.parse = function(s) { return eval('(' + s + ')'); }; }
+
 /**
  * Huawei OWS Alarm Monitoring Dashboard - Pure UI Presenter (script.js)
  */

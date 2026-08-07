@@ -1,3 +1,5 @@
+if (typeof JSON.parse !== 'function') { JSON.parse = function(s) { return eval('(' + s + ')'); }; }
+
 /**
  * OWS GDE Studio - Alarm Monitoring RunScript Backend (alarmGet / alrmget)
  */
