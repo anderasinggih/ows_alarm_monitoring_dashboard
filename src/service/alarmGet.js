@@ -641,6 +641,7 @@ for (var l = 0; l < liveRows.length; l++) {
         occurMs: startL,
         clearMs: endL,
         effStart: effStartL,
+        isLiveAlarm: true,
         isHistoryCleared: false
     });
 }
@@ -761,16 +762,16 @@ for (var sKey in siteIntervalMap) {
     var formattedAlarms = [];
     for (var fa = 0; fa < item.alarms.length; fa++) {
         var rawAlm = item.alarms[fa];
-        var isLiveActive = !rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0);
+        var isLiveActive = rawAlm.isLiveAlarm || (!rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0 || rawAlm.clearMs === nowMs));
         var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
-        var almEffEnd = rawAlm.clearMs || windowEndMs;
+        var almEffEnd = isLiveActive ? (nowMs > windowEndMs ? windowEndMs : nowMs) : (rawAlm.clearMs || windowEndMs);
         var durMs = almEffEnd - almEffStart;
         if (durMs < 0) durMs = 0;
 
         formattedAlarms.push({
             alarmName: rawAlm.alarmName,
             occurMs: rawAlm.occurMs,
-            clearMs: rawAlm.clearMs,
+            clearMs: isLiveActive ? 0 : rawAlm.clearMs,
             occurStr: formatTimeOnly(rawAlm.occurMs),
             clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
             durationFormatted: formatDuration(durMs)
