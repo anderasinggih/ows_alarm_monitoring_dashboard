@@ -22,13 +22,23 @@
       </div>
     </div>
 
-    <div class="custom-kpi-card" id="customKpiCardSitesAffected" style="cursor: pointer;" title="Click to filter Active Down Sites Only">
+    <div class="custom-kpi-card" id="customKpiCardSitesAffected" style="cursor: pointer;" title="Click to filter All Affected Sites">
       <div class="custom-kpi-icon-wrapper custom-kpi-icon-warning">
         <span style="font-weight: bold;">LOC</span>
       </div>
       <div class="custom-kpi-content">
         <span class="custom-kpi-title">SITES AFFECTED</span>
-        <span class="custom-kpi-value" id="statSitesAffected">0</span>
+        <span class="custom-kpi-value" id="statSitesAffected" style="color: #f59e0b;">0</span>
+      </div>
+    </div>
+
+    <div class="custom-kpi-card" id="customKpiCardActiveDown" style="cursor: pointer;" title="Click to filter Currently Down Sites Only">
+      <div class="custom-kpi-icon-wrapper custom-kpi-icon-danger">
+        <span style="font-weight: bold;">NOW</span>
+      </div>
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">ACTIVE DOWN SITES</span>
+        <span class="custom-kpi-value" id="statActiveDownSites" style="color: #ef4444;">0</span>
       </div>
     </div>
 

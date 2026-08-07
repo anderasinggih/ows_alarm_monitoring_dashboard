@@ -684,6 +684,7 @@ for (var h = 0; h < historyRows.length; h++) {
 // 3. CALCULATE MERGED DOWNTIME & SLA AVAILABILITY PER SITE
 var sitesList = [];
 var affectedSitesCount = 0;
+var activeDownSitesCount = 0;
 var totalAvailRateSum = 0;
 var maxDowntimeMs = 0;
 var mostAffectedSiteName = "-";
@@ -738,8 +739,11 @@ for (var sKey in siteIntervalMap) {
         totalDowntimeMergedMs = siteEffectiveWindowMs;
     }
 
-    if (item.totalAlarms > 0) {
+    if (totalDowntimeMergedMs > 0 || item.alarms.length > 0) {
         affectedSitesCount++;
+    }
+    if (item.totalAlarms > 0) {
+        activeDownSitesCount++;
     }
 
     if (totalDowntimeMergedMs > maxDowntimeMs) {
@@ -826,6 +830,7 @@ return {
         summary: {
             totalAlarmsDown: totalAlarmCountAccumulated,
             sitesAffected: affectedSitesCount,
+            activeDownSites: activeDownSitesCount,
             avgAvailabilityPct: globalAvgAvailabilityPct,
             mostAffectedSite: mostAffectedSiteName,
             mostAffectedSiteDowntime: mostAffectedSiteDowntime,

@@ -53,7 +53,7 @@ var DashboardState = {
     searchQuery: '',
     selectedRegion: '',
     selectedVendor: '',
-    isOnlyDownFilterActive: false,
+    kpiFilterMode: '', // '', 'active_down', 'sites_affected'
     searchDebounceTimeout: null,
     startDate: getTodayDates().startDate,
     endDate: getTodayDates().endDate,
@@ -64,6 +64,7 @@ var DashboardState = {
     summary: {
         totalAlarmsDown: 0,
         sitesAffected: 0,
+        activeDownSites: 0,
         avgAvailabilityPct: "100.0",
         mostAffectedSite: "-",
         mostAffectedSiteDowntime: "0m"
@@ -103,9 +104,11 @@ function getActiveFilterLabel() {
         html += '<span class="custom-active-filter-badge">Search: "' + DashboardState.searchQuery + '"</span>';
     }
 
-    // 5. Active Down Only Badge
-    if (DashboardState.isOnlyDownFilterActive) {
+    // 5. KPI Filter Mode Badge
+    if (DashboardState.kpiFilterMode === 'active_down') {
         html += '<span class="custom-active-filter-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Filter: Active Down Only</span>';
+    } else if (DashboardState.kpiFilterMode === 'sites_affected') {
+        html += '<span class="custom-active-filter-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: rgba(245, 158, 11, 0.3);">Filter: Sites Affected (All Downtime)</span>';
     }
 
     return html;
@@ -248,27 +251,46 @@ function renderFilterPanel() {
             });
         }
 
-        // Click Event Listener for SITES AFFECTED & TOTAL ALARMS DOWN KPI Cards
+        // Click Event Listener for KPI Cards (SITES AFFECTED, ACTIVE DOWN SITES, TOTAL ALARMS DOWN)
         var sitesAffectedCard = document.getElementById('customKpiCardSitesAffected');
+        var activeDownCard = document.getElementById('customKpiCardActiveDown');
         var totalAlarmsCard = document.getElementById('customKpiCardTotalAlarms');
 
-        function toggleDownFilter() {
-            DashboardState.isOnlyDownFilterActive = !DashboardState.isOnlyDownFilterActive;
+        function updateKpiCardHighlight() {
             if (sitesAffectedCard) {
-                if (DashboardState.isOnlyDownFilterActive) sitesAffectedCard.classList.add('custom-kpi-card-active');
+                if (DashboardState.kpiFilterMode === 'sites_affected') sitesAffectedCard.classList.add('custom-kpi-card-active');
                 else sitesAffectedCard.classList.remove('custom-kpi-card-active');
             }
+            if (activeDownCard) {
+                if (DashboardState.kpiFilterMode === 'active_down') activeDownCard.classList.add('custom-kpi-card-active');
+                else activeDownCard.classList.remove('custom-kpi-card-active');
+            }
             if (totalAlarmsCard) {
-                if (DashboardState.isOnlyDownFilterActive) totalAlarmsCard.classList.add('custom-kpi-card-active');
+                if (DashboardState.kpiFilterMode === 'active_down') totalAlarmsCard.classList.add('custom-kpi-card-active');
                 else totalAlarmsCard.classList.remove('custom-kpi-card-active');
             }
+        }
+
+        if (sitesAffectedCard) {
+            sitesAffectedCard.onclick = function () {
+                DashboardState.kpiFilterMode = (DashboardState.kpiFilterMode === 'sites_affected') ? '' : 'sites_affected';
+                updateKpiCardHighlight();
+                DashboardState.pagination.currentPage = 1;
+                updateActiveBadge();
+                applySearchFilter();
+            };
+        }
+
+        function toggleActiveDownFilter() {
+            DashboardState.kpiFilterMode = (DashboardState.kpiFilterMode === 'active_down') ? '' : 'active_down';
+            updateKpiCardHighlight();
             DashboardState.pagination.currentPage = 1;
             updateActiveBadge();
             applySearchFilter();
         }
 
-        if (sitesAffectedCard) sitesAffectedCard.onclick = toggleDownFilter;
-        if (totalAlarmsCard) totalAlarmsCard.onclick = toggleDownFilter;
+        if (activeDownCard) activeDownCard.onclick = toggleActiveDownFilter;
+        if (totalAlarmsCard) totalAlarmsCard.onclick = toggleActiveDownFilter;
     }
 
     // Dynamic Injection for Panel Header (Grid / List Buttons)
@@ -399,6 +421,7 @@ function fetchDashboardData() {
 function renderKPIStats() {
     var statTotal = document.getElementById('statTotalAlarms');
     var statSites = document.getElementById('statSitesAffected');
+    var statActiveDown = document.getElementById('statActiveDownSites');
     var statAvail = document.getElementById('statAvgAvail');
     var statMost = document.getElementById('statMostAffected');
     var statMostDt = document.getElementById('statMostAffectedDowntime');
@@ -408,6 +431,7 @@ function renderKPIStats() {
 
     var totalAlarms = 0;
     var sitesAffected = 0;
+    var activeDownSites = 0;
     var totalAvailRateSum = 0;
     var maxDowntimeMs = -1;
     var mostAffectedSiteName = "-";
@@ -417,7 +441,11 @@ function renderKPIStats() {
         var s = sitesToCalc[i];
         if (s.totalAlarms > 0) {
             totalAlarms += s.totalAlarms;
-            sitesAffected += 1; // SITES AFFECTED: MURNI JUMLAH SITE AKTIF YANG ALARM-NYA MASIH DOWN / BELUM CLEAR!
+            activeDownSites += 1;
+        }
+
+        if (s.downtimeMs > 0 || (s.alarms && s.alarms.length > 0) || s.totalAlarms > 0) {
+            sitesAffected += 1;
         }
 
         var rate = parseFloat(s.availRatePct) || 100;
@@ -436,6 +464,7 @@ function renderKPIStats() {
     // Dynamic Filter Override for Cards
     if (statTotal) statTotal.innerText = totalAlarms;
     if (statSites) statSites.innerText = sitesAffected;
+    if (statActiveDown) statActiveDown.innerText = activeDownSites;
     
     if (statAvail) {
         var valNum = parseFloat(avgAvailPctStr) || 100;
@@ -524,9 +553,14 @@ function applySearchFilter() {
         var itemVenId = (item.vendorId || '').toLowerCase();
         var matchesVendor = !ven || itemVenLabel === ven || itemVenId === ven || itemVenLabel.indexOf(ven) !== -1;
 
-        var matchesDownOnly = !DashboardState.isOnlyDownFilterActive || item.isDown || item.isCurrentlyDown || item.totalAlarms > 0;
+        var matchesKpi = true;
+        if (DashboardState.kpiFilterMode === 'active_down') {
+            matchesKpi = item.isDown || item.isCurrentlyDown || item.totalAlarms > 0;
+        } else if (DashboardState.kpiFilterMode === 'sites_affected') {
+            matchesKpi = item.hasHistoricalDowntime || (item.downtimeMs && item.downtimeMs > 0) || item.totalAlarms > 0 || (item.alarms && item.alarms.length > 0);
+        }
 
-        return matchesQuery && matchesRegion && matchesVendor && matchesDownOnly;
+        return matchesQuery && matchesRegion && matchesVendor && matchesKpi;
     });
 
     renderTable();
