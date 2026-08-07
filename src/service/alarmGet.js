@@ -561,14 +561,13 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
 
     // CMDB Site on_air_time Parsing
     var cOnAirStr = extractOWSField(getPropIC(cRow, 'on_air_time') || getPropIC(cRow, 'onairtime') || getPropIC(cRow, 'on_air_date'));
-    if (!cOnAirStr) {
-        continue; // STRICT EXCLUDE: Site yang on_air_time nya NULL / KOSONG DILARANG TAMPIL & DILARANG DIHITUNG
-    }
-
     var cOnAirMs = parseOWSTimestamp(cOnAirStr, 0);
 
-    // KETENTUAN SLA TELCO: Jika Site baru On-Air SETELAH windowEndMs (atau parsing gagal 0), site BELUM LAHIR pada periode ini (EXCLUDE)
-    if (cOnAirMs === 0 || cOnAirMs > windowEndMs) {
+    // Safeguard: Jika site on_air_time kosong/null, anggap site sudah on-air sejak awal (cOnAirMs = 1)
+    if (cOnAirMs === 0) cOnAirMs = 1;
+
+    // Hanya exclude jika site baru On-Air DI MASA DEPAN setelah windowEndMs
+    if (cOnAirMs > windowEndMs) {
         continue;
     }
 
@@ -620,7 +619,30 @@ function findMatchingSiteKey(alarmRecord) {
 for (var l = 0; l < liveRows.length; l++) {
     var alarmL = liveRows[l];
     var targetSiteKeyL = findMatchingSiteKey(alarmL);
-    if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
+    if (!targetSiteKeyL) {
+        var sCodeL = extractOWSField(alarmL.sitecode || alarmL.site_code || alarmL.site_id || alarmL.siteid || alarmL.necode);
+        if (sCodeL) {
+            targetSiteKeyL = sCodeL;
+            if (!siteIntervalMap[targetSiteKeyL]) {
+                siteIntervalMap[targetSiteKeyL] = {
+                    siteName: targetSiteKeyL,
+                    siteId: targetSiteKeyL,
+                    regionLabel: extractOWSField(alarmL.region_name || alarmL.region) || '-',
+                    regionId: '-',
+                    vendorLabel: extractOWSField(alarmL.vendor_name || alarmL.vendor) || '-',
+                    vendorId: '-',
+                    onAirMs: 1,
+                    onAirStr: '-',
+                    totalAlarms: 0,
+                    activeAlarms: 0,
+                    intervals: [],
+                    alarms: [],
+                    firstOccurMs: 0
+                };
+            }
+        }
+    }
+    if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue;
 
     var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
     var isLiveActive = (rawClearL === 0);
@@ -666,7 +688,30 @@ for (var h = 0; h < historyRows.length; h++) {
 
     if (startH <= windowEndMs && endH >= windowStartMs && startH > 0) {
         var targetSiteKeyH = findMatchingSiteKey(alarmH);
-        if (!targetSiteKeyH || !siteIntervalMap[targetSiteKeyH]) continue; // Skip jika tidak terdaftar di CMDB FWA On-Air
+        if (!targetSiteKeyH) {
+            var sCodeH = extractOWSField(alarmH.sitecode || alarmH.site_code || alarmH.site_id || alarmH.siteid || alarmH.necode);
+            if (sCodeH) {
+                targetSiteKeyH = sCodeH;
+                if (!siteIntervalMap[targetSiteKeyH]) {
+                    siteIntervalMap[targetSiteKeyH] = {
+                        siteName: targetSiteKeyH,
+                        siteId: targetSiteKeyH,
+                        regionLabel: extractOWSField(alarmH.region_name || alarmH.region) || '-',
+                        regionId: '-',
+                        vendorLabel: extractOWSField(alarmH.vendor_name || alarmH.vendor) || '-',
+                        vendorId: '-',
+                        onAirMs: 1,
+                        onAirStr: '-',
+                        totalAlarms: 0,
+                        activeAlarms: 0,
+                        intervals: [],
+                        alarms: [],
+                        firstOccurMs: 0
+                    };
+                }
+            }
+        }
+        if (!targetSiteKeyH || !siteIntervalMap[targetSiteKeyH]) continue;
 
         var effStart = startH < windowStartMs ? windowStartMs : startH;
         var effEnd = endH > windowEndMs ? windowEndMs : endH;
