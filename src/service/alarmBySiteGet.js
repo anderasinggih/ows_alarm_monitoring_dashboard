@@ -377,7 +377,7 @@ var ttTql = "SELECT sitename, acc_root_cause_site_name, orderidview, sourceticke
 var bsTql = "SELECT id, optionlabel FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
 var liveRows = queryByTql(liveTql, {}, 5000);
-var historyRows = queryByTql(historyTql, {}, 0);
+var historyRows = queryByTql(historyTql, {}, 5000); // Limit 5000 rows max to keep JS commands safe
 var ttRows = queryByTql(ttTql, {}, 1000);
 var bsRows = queryByTql(bsTql, {}, 200);
 
@@ -772,27 +772,6 @@ for (var sKey in siteIntervalMap) {
     }
 
     var isCurrentlyDown = item.activeAlarms > 0;
-    var formattedAlarms = [];
-    
-    if (isCurrentlyDown) {
-        for (var fa = 0; fa < item.alarms.length; fa++) {
-            var rawAlm = item.alarms[fa];
-            var isLiveActive = rawAlm.isLiveAlarm || (!rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0 || rawAlm.clearMs === nowMs));
-            var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
-            var almEffEnd = isLiveActive ? (nowMs > windowEndMs ? windowEndMs : nowMs) : (rawAlm.clearMs || windowEndMs);
-            var durMs = almEffEnd - almEffStart;
-            if (durMs < 0) durMs = 0;
-
-            formattedAlarms.push({
-                alarmName: rawAlm.alarmName,
-                occurMs: rawAlm.occurMs,
-                clearMs: isLiveActive ? 0 : rawAlm.clearMs,
-                occurStr: formatTimeOnly(rawAlm.occurMs),
-                clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
-                durationFormatted: formatDuration(durMs)
-            });
-        }
-    }
 
     sitesList.push({
         siteName: item.siteName,
@@ -806,16 +785,14 @@ for (var sKey in siteIntervalMap) {
         totalAlarms: item.totalAlarms,
         activeAlarms: item.activeAlarms,
         downtimeMs: totalDowntimeMergedMs,
+        availableMs: availableMs,
         lastOccurrenceMs: latestOccurMs,
-        downtimeFormatted: formatDuration(totalDowntimeMergedMs),
-        availableFormatted: formatDuration(availableMs),
         availRatePct: availRate,
-        lastOccurrenceStr: lastOccStr,
-        isDown: item.activeAlarms > 0,
-        isCurrentlyDown: item.activeAlarms > 0,
+        firstOccurMs: item.firstOccurMs || 0,
+        isDown: isCurrentlyDown,
+        isCurrentlyDown: isCurrentlyDown,
         hasHistoricalDowntime: totalDowntimeMergedMs > 0,
-        alarms: formattedAlarms,
-        tickets: totalDowntimeMergedMs > 0 ? getSiteTickets(item.siteName, item.firstOccurMs || 0) : []
+        rawAlarms: item.alarms || []
     });
 }
 
@@ -835,7 +812,60 @@ if (reqPage > totalPages) reqPage = totalPages;
 if (reqPage < 1) reqPage = 1;
 
 var startIndex = (reqPage - 1) * reqPageSize;
-var pagedSites = sitesList.slice(startIndex, startIndex + reqPageSize);
+var rawPagedSites = sitesList.slice(startIndex, startIndex + reqPageSize);
+
+// LAZY FORMATTING: Hanya format 20 site yang tampil di page ini! (Hemat >95% JS commands)
+var pagedSites = [];
+for (var ps = 0; ps < rawPagedSites.length; ps++) {
+    var pSite = rawPagedSites[ps];
+    var formattedAlarms = [];
+
+    if (pSite.isCurrentlyDown) {
+        for (var fa = 0; fa < pSite.rawAlarms.length; fa++) {
+            var rawAlm = pSite.rawAlarms[fa];
+            var isLiveActive = rawAlm.isLiveAlarm || (!rawAlm.isHistoryCleared && (rawAlm.clearMs >= windowEndMs || rawAlm.clearMs === 0 || rawAlm.clearMs === nowMs));
+            var almEffStart = rawAlm.effStart || rawAlm.occurMs || windowStartMs;
+            var almEffEnd = isLiveActive ? (nowMs > windowEndMs ? windowEndMs : nowMs) : (rawAlm.clearMs || windowEndMs);
+            var durMs = almEffEnd - almEffStart;
+            if (durMs < 0) durMs = 0;
+
+            formattedAlarms.push({
+                alarmName: rawAlm.alarmName,
+                occurMs: rawAlm.occurMs,
+                clearMs: isLiveActive ? 0 : rawAlm.clearMs,
+                occurStr: formatTimeOnly(rawAlm.occurMs),
+                clearStr: isLiveActive ? 'Active (Now)' : (rawAlm.clearMs > 0 ? formatTimeOnly(rawAlm.clearMs) : '-'),
+                durationFormatted: formatDuration(durMs)
+            });
+        }
+    }
+
+    var lastOccStr = pSite.lastOccurrenceMs > 0 ? formatTimeOnly(pSite.lastOccurrenceMs) : "-";
+
+    pagedSites.push({
+        siteName: pSite.siteName,
+        siteId: pSite.siteId,
+        regionLabel: pSite.regionLabel,
+        regionId: pSite.regionId,
+        vendorLabel: pSite.vendorLabel,
+        vendorId: pSite.vendorId,
+        onAirMs: pSite.onAirMs,
+        onAirStr: pSite.onAirStr,
+        totalAlarms: pSite.totalAlarms,
+        activeAlarms: pSite.activeAlarms,
+        downtimeMs: pSite.downtimeMs,
+        lastOccurrenceMs: pSite.lastOccurrenceMs,
+        downtimeFormatted: formatDuration(pSite.downtimeMs),
+        availableFormatted: formatDuration(pSite.availableMs),
+        availRatePct: pSite.availRatePct,
+        lastOccurrenceStr: lastOccStr,
+        isDown: pSite.isDown,
+        isCurrentlyDown: pSite.isCurrentlyDown,
+        hasHistoricalDowntime: pSite.hasHistoricalDowntime,
+        alarms: formattedAlarms,
+        tickets: pSite.downtimeMs > 0 ? getSiteTickets(pSite.siteName, pSite.firstOccurMs) : []
+    });
+}
 
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
