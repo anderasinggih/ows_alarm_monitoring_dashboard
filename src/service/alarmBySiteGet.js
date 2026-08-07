@@ -577,17 +577,22 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
 function findMatchingSiteKey(alarmRecord) {
     if (!alarmRecord) return null;
 
-    var alarmCode = extractOWSField(getPropIC(alarmRecord, 'sitecode') || getPropIC(alarmRecord, 'logicsiteid'));
+    var alarmCode = alarmRecord.sitecode || alarmRecord.SITECODE || alarmRecord.site_code || alarmRecord.logicsiteid || alarmRecord.LOGICSITEID || '';
     if (alarmCode) {
+        if (typeof alarmCode !== 'string') alarmCode = String(alarmCode);
+        alarmCode = alarmCode.trim();
         if (siteIdToKeyMap[alarmCode]) return siteIdToKeyMap[alarmCode];
-        if (siteIdToKeyMap[alarmCode.toUpperCase()]) return siteIdToKeyMap[alarmCode.toUpperCase()];
-        if (siteIdToKeyMap[alarmCode.toLowerCase()]) return siteIdToKeyMap[alarmCode.toLowerCase()];
+        var upperCode = alarmCode.toUpperCase();
+        if (siteIdToKeyMap[upperCode]) return siteIdToKeyMap[upperCode];
     }
 
-    var alarmSiteName = extractOWSField(getPropIC(alarmRecord, 'sitename'));
+    var alarmSiteName = alarmRecord.sitename || alarmRecord.SITENAME || alarmRecord.site_name || '';
     if (alarmSiteName) {
+        if (typeof alarmSiteName !== 'string') alarmSiteName = String(alarmSiteName);
+        alarmSiteName = alarmSiteName.trim();
         if (siteIdToKeyMap[alarmSiteName]) return siteIdToKeyMap[alarmSiteName];
-        if (siteIdToKeyMap[alarmSiteName.toUpperCase()]) return siteIdToKeyMap[alarmSiteName.toUpperCase()];
+        var upperName = alarmSiteName.toUpperCase();
+        if (siteIdToKeyMap[upperName]) return siteIdToKeyMap[upperName];
     }
 
     return null;
