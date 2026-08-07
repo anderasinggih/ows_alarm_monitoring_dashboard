@@ -4,8 +4,10 @@
 
 
 
-// OWS Service Endpoint Path
+// OWS Service Endpoint - Summary only (KPI cards)
 var SERVICE_ENDPOINT = "/adc-service/rest/v1/services/gde_dashboard/alarm_monitoring_dashboard/alarm_moni_alarmget";
+// OWS Service Endpoint - Paginated site list (table)
+var SERVICE_ENDPOINT_LIST = "/adc-service/rest/v1/services/gde_dashboard/alarm_monitoring_dashboard/alarm_moni_alarmbysite";
 
 function formatDateTimeLocal(d) {
     var yyyy = d.getFullYear();
@@ -59,7 +61,9 @@ var DashboardState = {
     endDate: getTodayDates().endDate,
     pagination: {
         currentPage: 1,
-        pageSize: 50 // DEFAULT ROWS PER PAGE IS 50
+        pageSize: 20, // server-side page size
+        totalSites: 0,
+        totalPages: 1
     },
     summary: {
         totalAlarmsDown: 0,
@@ -331,21 +335,53 @@ function renderFilterPanel() {
 }
 
 // Fetch Data from OWS Service
-function fetchDashboardData() {
-    // If Last 24h mode is active, recalculate rolling date timestamps on every refresh
+// Fetch Summary KPI only (kontainer atas) - calls alarmGet service
+function fetchSummary() {
     if (DashboardState.isLast24hMode) {
         var q24 = getLast24HoursDates();
         DashboardState.startDate = q24.startDate;
         DashboardState.endDate = q24.endDate;
-
         var sInput = document.getElementById('customStartDateInput');
         var eInput = document.getElementById('customEndDateInput');
         if (sInput) sInput.value = q24.startDate;
         if (eInput) eInput.value = q24.endDate;
-
         var b = document.getElementById('customActiveFilterBadge');
         if (b) b.innerText = getActiveFilterLabel();
     }
+
+    if (typeof MessageProcessor === 'undefined' || !MessageProcessor.process) {
+        console.error('[OWS Error] MessageProcessor.process API runtime not found.');
+        return;
+    }
+
+    MessageProcessor.process({
+        serviceId: SERVICE_ENDPOINT,
+        data: {
+            startDate: DashboardState.startDate,
+            endDate: DashboardState.endDate,
+            region: DashboardState.selectedRegion || '',
+            vendor: DashboardState.selectedVendor || '',
+            searchQuery: DashboardState.searchQuery || ''
+        },
+        success: function (res) {
+            try {
+                var resultData = (res && res.result) || (res && res.data) || res;
+                if (resultData && resultData.summary) {
+                    DashboardState.summary = resultData.summary;
+                    renderKPIStats();
+                }
+            } catch (e) {
+                console.error('[OWS Summary Error]:', e);
+            }
+        },
+        error: function (err) {
+            console.error('[OWS Summary Service Error]:', err);
+        }
+    });
+}
+
+// Fetch paginated site list (tabel bawah) - calls alarmBySiteGet service
+function fetchTablePage() {
     var tableContainer = document.getElementById('alarmTableContainer');
     if (tableContainer) {
         tableContainer.innerHTML = '<div style="color: #a1a1aa; padding: 24px; text-align: center;">Loading data from OWS...</div>';
@@ -360,7 +396,7 @@ function fetchDashboardData() {
     }
 
     MessageProcessor.process({
-        serviceId: SERVICE_ENDPOINT,
+        serviceId: SERVICE_ENDPOINT_LIST,
         data: {
             startDate: DashboardState.startDate,
             endDate: DashboardState.endDate,
@@ -368,48 +404,41 @@ function fetchDashboardData() {
             vendor: DashboardState.selectedVendor || '',
             searchQuery: DashboardState.searchQuery || '',
             page: DashboardState.pagination.currentPage || 1,
-            pageSize: DashboardState.pagination.pageSize || 50
+            pageSize: DashboardState.pagination.pageSize || 20
         },
         success: function (res) {
             try {
-                var resObj = res;
-                var resultData = (resObj && resObj.result) || (resObj && resObj.data) || resObj;
-
-
+                var resultData = (res && res.result) || (res && res.data) || res;
 
                 if (resultData && resultData.pagination) {
                     DashboardState.pagination.currentPage = resultData.pagination.currentPage || 1;
-                    DashboardState.pagination.pageSize = resultData.pagination.pageSize || 50;
+                    DashboardState.pagination.pageSize = resultData.pagination.pageSize || 20;
                     DashboardState.pagination.totalSites = resultData.pagination.totalSites || 0;
                     DashboardState.pagination.totalPages = resultData.pagination.totalPages || 1;
                 }
 
-                if (resultData && resultData.summary) {
-                    DashboardState.summary = resultData.summary;
+                if (resultData && resultData.sites !== undefined) {
                     var fetchedSites = resultData.sites || [];
                     var nowFetchTime = new Date().getTime();
-
                     for (var f = 0; f < fetchedSites.length; f++) {
                         fetchedSites[f].baseDowntimeMs = fetchedSites[f].downtimeMs || 0;
                         fetchedSites[f].initialFetchedAt = nowFetchTime;
                     }
-
                     DashboardState.allSites = fetchedSites;
+                    DashboardState.filteredSites = fetchedSites;
                     populateFilterDropdowns();
-                    applySearchFilter();
-
-                    renderKPIStats();
+                    renderTable();
                 } else {
                     if (tableContainer) {
                         tableContainer.innerHTML = '<div style="color: #ef4444; padding: 24px; text-align: center;">Failed to load data. OWS payload empty.</div>';
                     }
                 }
             } catch (e) {
-                console.error('[OWS Error] Parse Exception:', e);
+                console.error('[OWS Table Error]:', e);
             }
         },
         error: function (err) {
-            console.error('[OWS Service Error]:', err);
+            console.error('[OWS Table Service Error]:', err);
             if (tableContainer) {
                 tableContainer.innerHTML = '<div style="color: #ef4444; padding: 24px; text-align: center;">Failed to load data from OWS service.</div>';
             }
@@ -417,7 +446,13 @@ function fetchDashboardData() {
     });
 }
 
-// Render KPI Stat Cards with Dynamic Color Thresholds directly from OWS Service Summary aggregation
+// Main fetch - calls both services in parallel
+function fetchDashboardData() {
+    fetchSummary();
+    fetchTablePage();
+}
+
+// Render KPI Stat Cards - LANGSUNG dari DashboardState.summary (hasil server, bukan hitung ulang frontend)
 function renderKPIStats() {
     var statTotal = document.getElementById('statTotalAlarms');
     var statSites = document.getElementById('statSitesAffected');
@@ -426,52 +461,16 @@ function renderKPIStats() {
     var statMost = document.getElementById('statMostAffected');
     var statMostDt = document.getElementById('statMostAffectedDowntime');
 
-    var sitesToCalc = DashboardState.filteredSites || DashboardState.allSites || [];
     var summary = DashboardState.summary || {};
 
-    var totalAlarms = 0;
-    var sitesAffected = 0;
-    var activeDownSites = 0;
-    var totalAvailRateSum = 0;
-    var maxDowntimeMs = -1;
-    var mostAffectedSiteName = "-";
-    var mostAffectedSiteDowntimeStr = "-";
+    if (statTotal) statTotal.innerText = summary.totalAlarmsDown || 0;
+    if (statSites) statSites.innerText = summary.sitesAffected || 0;
+    if (statActiveDown) statActiveDown.innerText = summary.activeDownSites || 0;
 
-    for (var i = 0; i < sitesToCalc.length; i++) {
-        var s = sitesToCalc[i];
-        totalAlarms += (s.totalAlarms || 0);
-
-        if (s.activeAlarms > 0 || s.isDown || s.isCurrentlyDown) {
-            activeDownSites += 1;
-        }
-
-        if (s.downtimeMs > 0 || (s.alarms && s.alarms.length > 0) || (s.totalAlarms && s.totalAlarms > 0)) {
-            sitesAffected += 1;
-        }
-
-        var rate = parseFloat(s.availRatePct) || 100;
-        totalAvailRateSum += rate;
-
-        var dtMs = s.downtimeMs || 0;
-        if (dtMs > maxDowntimeMs) {
-            maxDowntimeMs = dtMs;
-            mostAffectedSiteName = s.siteName;
-            mostAffectedSiteDowntimeStr = s.downtimeFormatted || "0m";
-        }
-    }
-
-    var avgAvailPctStr = sitesToCalc.length > 0 ? (totalAvailRateSum / sitesToCalc.length).toFixed(1) : "100.0";
-
-    // Dynamic Filter Override for Cards
-    if (statTotal) statTotal.innerText = totalAlarms;
-    if (statSites) statSites.innerText = sitesAffected;
-    if (statActiveDown) statActiveDown.innerText = activeDownSites;
-    
     if (statAvail) {
+        var avgAvailPctStr = summary.avgAvailabilityPct || '100.0';
         var valNum = parseFloat(avgAvailPctStr) || 100;
-        
-        // Dynamic Color Thresholds:
-        var kpiColor = '#10b981'; // Green for > 80%
+        var kpiColor = '#10b981'; // Hijau > 80%
         if (valNum <= 40) {
             kpiColor = '#ef4444'; // Merah (0 - 40%)
         } else if (valNum <= 60) {
@@ -479,28 +478,26 @@ function renderKPIStats() {
         } else if (valNum <= 80) {
             kpiColor = '#f59e0b'; // Kuning (60 - 80%)
         }
-        
         statAvail.innerText = avgAvailPctStr + "%";
         statAvail.style.color = kpiColor;
     }
 
-    if (statMost) statMost.innerText = mostAffectedSiteName;
+    if (statMost) statMost.innerText = summary.mostAffectedSite || '-';
     if (statMostDt) {
-        if (mostAffectedSiteDowntimeStr && mostAffectedSiteDowntimeStr !== "0m" && mostAffectedSiteDowntimeStr !== "0s" && mostAffectedSiteName !== "-") {
-            statMostDt.innerText = mostAffectedSiteDowntimeStr + " down";
+        var dtStr = summary.mostAffectedSiteDowntime || '';
+        if (dtStr && dtStr !== '0m' && dtStr !== '0s' && summary.mostAffectedSite !== '-') {
+            statMostDt.innerText = dtStr + ' down';
         } else {
-            statMostDt.innerText = "-";
+            statMostDt.innerText = '-';
         }
     }
 }
 
-// Populate Region & Vendor Filter Dropdowns dynamically from initial dataset
+// Filter dropdown populate - from allSites (current page)
 function populateFilterDropdowns() {
     var regSelect = document.getElementById('customRegionSelect');
     var venSelect = document.getElementById('customVendorSelect');
     if (!regSelect || !venSelect) return;
-
-    // Preserve existing options list so selecting a filter does not wipe available options
     if (regSelect.options.length > 1 && venSelect.options.length > 1) return;
 
     var currentReg = DashboardState.selectedRegion;
@@ -535,70 +532,22 @@ function populateFilterDropdowns() {
     venSelect.innerHTML = venHtml;
 }
 
-// Dynamic Combined Filter (Region, Vendor, Search Site Name / Site ID)
+// applySearchFilter - reset page ke 1, lalu minta server fetch ulang
 function applySearchFilter() {
-    var q = (DashboardState.searchQuery || '').toLowerCase().trim();
-    var reg = (DashboardState.selectedRegion || '').toLowerCase().trim();
-    var ven = (DashboardState.selectedVendor || '').toLowerCase().trim();
-
-    DashboardState.filteredSites = (DashboardState.allSites || []).filter(function (item) {
-        var matchesQuery = !q || 
-            (item.siteName || '').toLowerCase().indexOf(q) !== -1 || 
-            (item.siteId || '').toLowerCase().indexOf(q) !== -1;
-            
-        var itemRegLabel = (item.regionLabel || '').toLowerCase();
-        var itemRegId = (item.regionId || '').toLowerCase();
-        var matchesRegion = !reg || itemRegLabel === reg || itemRegId === reg || itemRegLabel.indexOf(reg) !== -1;
-
-        var itemVenLabel = (item.vendorLabel || '').toLowerCase();
-        var itemVenId = (item.vendorId || '').toLowerCase();
-        var matchesVendor = !ven || itemVenLabel === ven || itemVenId === ven || itemVenLabel.indexOf(ven) !== -1;
-
-        var matchesKpi = true;
-        if (DashboardState.kpiFilterMode === 'active_down') {
-            matchesKpi = item.isDown || item.isCurrentlyDown || item.totalAlarms > 0;
-        } else if (DashboardState.kpiFilterMode === 'sites_affected') {
-            matchesKpi = item.hasHistoricalDowntime || (item.downtimeMs && item.downtimeMs > 0) || item.totalAlarms > 0 || (item.alarms && item.alarms.length > 0);
-        }
-
-        return matchesQuery && matchesRegion && matchesVendor && matchesKpi;
-    });
-
-    renderTable();
-    renderKPIStats();
+    DashboardState.pagination.currentPage = 1;
+    fetchTablePage();
 }
 
 // Render Table (Supports both List View & Grid View Modes)
 function renderTable() {
     var tableContainer = document.getElementById('alarmTableContainer');
     if (!tableContainer) return;
-
-    var list = DashboardState.filteredSites;
-    if (!list || list.length === 0) {
-        tableContainer.innerHTML = '' +
-            '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #27272a; background: #18181b;">' +
-            '  <span style="font-size: 13px; font-weight: 600; color: #f4f4f5;">ALARMS DOWN BY SITE <span style="font-size: 11px; font-weight: normal; color: #a1a1aa;">(Sorted by Latest Occur Time)</span></span>' +
-            '  <div class="custom-view-toggle-group">' +
-            '    <button id="customGridViewBtn" class="custom-view-toggle-btn ' + (DashboardState.viewMode === 'grid' ? 'custom-active' : '') + '">Grid</button>' +
-            '    <button id="customListViewBtn" class="custom-view-toggle-btn ' + (DashboardState.viewMode === 'list' ? 'custom-active' : '') + '">List</button>' +
-            '  </div>' +
-            '</div>' +
-            '<div style="color: #a1a1aa; padding: 24px; text-align: center;">No site or alarm data found.</div>';
-
-        attachViewToggleListeners();
-        return;
-    }
-
+    // Data sudah di-slice server (max 20 items) — langsung pakai DashboardState.allSites
+    var list = DashboardState.allSites || [];
     var pag = DashboardState.pagination;
-    var totalItems = list.length;
-    var totalPages = Math.ceil(totalItems / pag.pageSize) || 1;
-
-    if (pag.currentPage > totalPages) pag.currentPage = totalPages;
-    if (pag.currentPage < 1) pag.currentPage = 1;
-
-    var startIdx = (pag.currentPage - 1) * pag.pageSize;
-    var endIdx = Math.min(startIdx + pag.pageSize, totalItems);
-    var pageItems = list.slice(startIdx, endIdx);
+    var totalItems = pag.totalSites || list.length;
+    var totalPages = pag.totalPages || 1;
+    var pageItems = list; // already sliced by server
 
     var html = '' +
         '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #27272a; background: #18181b;">' +
@@ -707,17 +656,18 @@ function renderTable() {
                 '</tr>';
         }
 
-        html += '  </tbody></table>';
+    html += '  </tbody></table>';
     }
 
-    // RENDER AUTO PAGINATION CONTROLS
+    // RENDER AUTO PAGINATION CONTROLS (server-side)
+    var startIdx = (pag.currentPage - 1) * pag.pageSize + 1;
+    var endIdx = Math.min(pag.currentPage * pag.pageSize, totalItems);
     html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: #18181b; border-top: 1px solid #27272a; font-size: 12px; color: #a1a1aa;">';
     html += '  <div>Total <b style="color: #f4f4f5;">' + totalItems + '</b> sites | Page <b style="color: #f4f4f5;">' + pag.currentPage + '</b> of <b style="color: #f4f4f5;">' + totalPages + '</b></div>';
-
     html += '  <div style="display: flex; gap: 8px; align-items: center;">';
     html += '    <label>Rows per page:</label>';
     html += '    <select id="customPageSizeSelect" style="background: #09090b; color: #f4f4f5; border: 1px solid #27272a; border-radius: 6px; padding: 4px 8px; outline: none; cursor: pointer;">';
-    [10, 20, 50, 100].forEach(function (size) {
+    [10, 20, 50].forEach(function (size) {
         var sel = pag.pageSize === size ? 'selected' : '';
         html += '      <option value="' + size + '" ' + sel + '>' + size + '</option>';
     });
@@ -725,7 +675,6 @@ function renderTable() {
 
     var prevDisabledStr = pag.currentPage === 1 ? 'disabled' : '';
     var nextDisabledStr = pag.currentPage === totalPages ? 'disabled' : '';
-
     html += '    <button id="customPrevPageBtn" class="custom-pag-btn" ' + prevDisabledStr + '>&lt; Prev</button>';
     html += '    <button id="customNextPageBtn" class="custom-pag-btn" ' + nextDisabledStr + '>Next &gt;</button>';
     html += '  </div>';
@@ -735,24 +684,24 @@ function renderTable() {
 
     attachViewToggleListeners();
 
-    // Attach Row / Grid Click Event Listener for Site Detail Modal
+    // Attach Row / Grid Click for Site Detail Modal — index relative to current page
     var clickables = tableContainer.querySelectorAll('.custom-table-row');
     clickables.forEach(function (item) {
         item.addEventListener('click', function () {
             var idx = parseInt(this.getAttribute('data-site-index'), 10);
-            if (!isNaN(idx) && DashboardState.filteredSites[idx]) {
-                openSiteDetailModal(DashboardState.filteredSites[idx]);
+            if (!isNaN(idx) && DashboardState.allSites[idx]) {
+                openSiteDetailModal(DashboardState.allSites[idx]);
             }
         });
     });
 
-    // Attach Pagination Event Listeners (Client-Side Local Pagination)
+    // Attach Pagination Event Listeners - SERVER-SIDE (fetch from service)
     var sizeSelect = document.getElementById('customPageSizeSelect');
     if (sizeSelect) {
         sizeSelect.addEventListener('change', function () {
-            pag.pageSize = parseInt(this.value, 10) || 50;
+            pag.pageSize = parseInt(this.value, 10) || 20;
             pag.currentPage = 1;
-            renderTable();
+            fetchTablePage();
         });
     }
 
@@ -760,7 +709,7 @@ function renderTable() {
     if (prevBtn && pag.currentPage > 1) {
         prevBtn.addEventListener('click', function () {
             pag.currentPage--;
-            renderTable();
+            fetchTablePage();
         });
     }
 
@@ -768,7 +717,7 @@ function renderTable() {
     if (nextBtn && pag.currentPage < totalPages) {
         nextBtn.addEventListener('click', function () {
             pag.currentPage++;
-            renderTable();
+            fetchTablePage();
         });
     }
 }
