@@ -351,14 +351,26 @@ if (searchQueryStr !== "") {
     siteTql += " AND (site_name LIKE '%" + cleanQ + "%' OR site_id LIKE '%" + cleanQ + "%' OR site_code LIKE '%" + cleanQ + "%')";
 }
 
-var cmdbSiteRows = queryByTql(siteTql, {}, 2000);
+var cmdbSiteRows = queryByTql(siteTql, {});
 
-// Collect All FWA Site IDs for Database Level IN Filtering (STRICT MURNI: site_id ONLY)
+// Collect All FWA Site IDs + Site Codes for Database Level IN Filtering (site_id AND site_code to match sitecode in alarm tables)
 var fwaSiteCodesList = [];
+var fwaSiteCodesSet = {};
 for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
-    var cRow = cmdbSiteRows[cs];
-    var sIdVal = extractOWSField(getPropIC(cRow, 'site_id') || getPropIC(cRow, 'siteid'));
-    if (sIdVal) fwaSiteCodesList.push("'" + sIdVal + "'");
+    var cRowPre = cmdbSiteRows[cs];
+    var sIdVal = extractOWSField(getPropIC(cRowPre, 'site_id') || getPropIC(cRowPre, 'siteid'));
+    var sCodeVal = extractOWSField(getPropIC(cRowPre, 'site_code') || getPropIC(cRowPre, 'sitecode'));
+    // Add both site_id and site_code (deduplicated) since alarm tables use sitecode field
+    var toAdd = [];
+    if (sIdVal) toAdd.push(sIdVal);
+    if (sCodeVal && sCodeVal !== sIdVal) toAdd.push(sCodeVal);
+    for (var ai = 0; ai < toAdd.length; ai++) {
+        var addVal = toAdd[ai];
+        if (addVal && !fwaSiteCodesSet[addVal.toUpperCase()]) {
+            fwaSiteCodesSet[addVal.toUpperCase()] = true;
+            fwaSiteCodesList.push("'" + addVal + "'");
+        }
+    }
 }
 
 var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSiteCodesList.join(",") + ")") : " AND sitecode IN ('__NO_MATCHING_SITES__')";
@@ -574,6 +586,10 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
         continue;
     }
 
+    // Extract site_id & site_code FIRST, before using them below
+    var cSiteId = extractOWSField(cRow.site_id || cRow.siteid);
+    var cSiteCode = extractOWSField(cRow.site_code || cRow.sitecode);
+
     if (!siteIntervalMap[cSiteName]) {
         siteIntervalMap[cSiteName] = {
             siteName: cSiteName,
@@ -592,10 +608,7 @@ for (var cs = 0; cs < cmdbSiteRows.length; cs++) {
         };
     }
 
-    // Indeks seluruh identifier CMDB site (site_id, site_code, site_name) ke primary cSiteName key
-    var cSiteId = extractOWSField(cRow.site_id || cRow.siteid);
-    var cSiteCode = extractOWSField(cRow.site_code || cRow.sitecode);
-
+    // Index all CMDB site identifiers (site_id, site_code, site_name) to the primary cSiteName key
     var keysToRegister = [cSiteId, cSiteCode, cSiteName];
     for (var k = 0; k < keysToRegister.length; k++) {
         var keyVal = keysToRegister[k];
