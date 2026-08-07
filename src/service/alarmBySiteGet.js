@@ -826,6 +826,8 @@ sitesList.sort(function (a, b) {
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
 
+var globalAvgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
+
 // Server-side pagination: page & pageSize dikirim dari frontend sebagai input param
 var totalSites = sitesList.length;
 var totalPages = Math.ceil(totalSites / reqPageSize) || 1;
