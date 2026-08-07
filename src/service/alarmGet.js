@@ -621,7 +621,7 @@ for (var l = 0; l < liveRows.length; l++) {
     if (!targetSiteKeyL || !siteIntervalMap[targetSiteKeyL]) continue;
 
     var rawClearL = parseOWSTimestamp(alarmL.cleartime, 0);
-    var isLiveActive = (rawClearL === 0) || (alarmL.active === true || alarmL.active === 'true' || alarmL.active === 1 || alarmL.active === '1');
+    var isLiveActive = (rawClearL === 0);
 
     totalAlarmCountAccumulated++;
     siteIntervalMap[targetSiteKeyL].totalAlarms += 1;
@@ -659,9 +659,8 @@ for (var h = 0; h < historyRows.length; h++) {
     var alarmH = historyRows[h];
     var startH = parseOWSTimestamp(alarmH.firstinserttime || alarmH.firstoccurrence, windowStartMs);
     var rawClearH = parseOWSTimestamp(alarmH.cleartime, 0);
-    var isActiveH = (alarmH.active === true || alarmH.active === 'true' || alarmH.active === 1 || alarmH.active === '1');
 
-    var isHistoryCleared = rawClearH > 0 && !isActiveH;
+    var isHistoryCleared = rawClearH > 0;
     var endH = isHistoryCleared ? rawClearH : windowEndMs;
 
     if (startH <= windowEndMs && endH >= windowStartMs && startH > 0) {
