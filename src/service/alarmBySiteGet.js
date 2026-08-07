@@ -826,7 +826,16 @@ sitesList.sort(function (a, b) {
     return (b.lastOccurrenceMs || 0) - (a.lastOccurrenceMs || 0);
 });
 
-var globalAvgAvailabilityPct = sitesList.length > 0 ? (totalAvailRateSum / sitesList.length).toFixed(1) : "100.0";
+// Slice sites for server-side pagination (default 20 sites per page)
+var defaultPageSize = 20;
+var pageSize = reqPageSize || defaultPageSize;
+var totalSites = sitesList.length;
+var totalPages = Math.ceil(totalSites / pageSize) || 1;
+if (reqPage > totalPages) reqPage = totalPages;
+if (reqPage < 1) reqPage = 1;
+
+var startIndex = (reqPage - 1) * pageSize;
+var pagedSites = sitesList.slice(startIndex, startIndex + pageSize);
 
 var execEndMs = new Date().getTime();
 var totalExecDurationMs = execEndMs - execStartMs;
@@ -834,7 +843,7 @@ var totalExecDurationMs = execEndMs - execStartMs;
 return {
     result: {
         success: true,
-        message: "FWA Site Fault Alarm Summary loaded.",
+        message: "FWA Site Fault Alarm List loaded.",
         queryParams: {
             startDate: startISO.substring(0, 10),
             endDate: endISO.substring(0, 10)
@@ -848,12 +857,12 @@ return {
             mostAffectedSiteDowntime: mostAffectedSiteDowntime
         },
         pagination: {
-            currentPage: 1,
-            pageSize: 0,
-            totalSites: sitesList.length,
-            totalPages: 1
+            currentPage: reqPage,
+            pageSize: pageSize,
+            totalSites: totalSites,
+            totalPages: totalPages
         },
-        sites: [],
+        sites: pagedSites,
         _performanceStatus: {
             executionDurationMs: totalExecDurationMs,
             executionDurationSec: (totalExecDurationMs / 1000).toFixed(2) + "s",
