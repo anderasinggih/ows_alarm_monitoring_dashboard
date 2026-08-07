@@ -287,8 +287,8 @@ var endISO = formatISODate(new Date(windowEndMs));
 // ==========================================
 // 2. FETCH LOOKUP CMDB MAPS FIRST (REGION & VENDOR)
 // ==========================================
-var vendorTql = "SELECT * FROM \"/datahub/cmdb/cmdb_vendor\"";
-var regionTql = "SELECT * FROM \"/datahub/cmdb/cmdb_region\"";
+var vendorTql = "SELECT id, value_id, keycode, vendor_name, label, name FROM \"/datahub/cmdb/cmdb_vendor\"";
+var regionTql = "SELECT id, value_id, keycode, region_name, label, name FROM \"/datahub/cmdb/cmdb_region\"";
 var vendorRows = queryByTql(vendorTql, {}, 500);
 var regionRows = queryByTql(regionTql, {}, 500);
 
@@ -323,7 +323,7 @@ for (var v = 0; v < vendorRows.length; v++) {
 // ==========================================
 // 3. QUERY CMDB SITE FWA ON-AIR FIRST
 // ==========================================
-var siteTql = "SELECT * FROM \"/datahub/cmdb/cmdb_site\" " +
+var siteTql = "SELECT site_name, sitename, name, site_id, siteid, keycode, site_code, sitecode, vendor, vendor_id, region_name, regionname, region, province, prov, city, cityname, township, on_air_time, onairtime, on_air_date FROM \"/datahub/cmdb/cmdb_site\" " +
     "WHERE access_type = 'ce1d6700-f34d-11f0-80d8-0255ac12193b' " +
     "AND site_stage = 'f343d1fb-e165-11f0-90da-0255ac121938'";
 
@@ -364,17 +364,17 @@ var siteInClause = fwaSiteCodesList.length > 0 ? (" AND sitecode IN (" + fwaSite
 // ==========================================
 // 4. QUERY LIVE & HISTORY ALARMS
 // ==========================================
-var liveTql = "SELECT * FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
+var liveTql = "SELECT sitecode, site_code, site_id, siteid, sitedownfault, cleartime, firstinserttime, eventtime, event_time, alarmname, alarm_name, rawalarmname FROM \"/AlarmBase/ICT_AlarmPush/ap_alarm_live\" WHERE (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var historyTql = "SELECT * FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
+var historyTql = "SELECT sitecode, site_code, site_id, siteid, sitedownfault, cleartime, firstinserttime, firstoccurrence, eventtime, event_time, alarmname, alarm_name, rawalarmname FROM \"/AlarmBase/ICT_History_Query/ict_hq_es_history\" " +
     "WHERE firstinserttime <= " + windowEndMs + " " +
     "AND (cleartime >= " + windowStartMs + " OR cleartime = 0 OR cleartime IS NULL) " +
     "AND (sitedownfault = '1' OR sitedownfault = 1)" + siteInClause;
 
-var ttTql = "SELECT * FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
+var ttTql = "SELECT sitename, acc_root_cause_site_name, site_name, orderidview, sourceticketid, faultno, eventno, ticketid, orderid, id, ticket_id, root_cause, rootcause, level_one_root_cause, sub_root_cause, subcause, level_two_root_cause, subsolutiontype, businessstatus, createtime, create_time, processdefkey, process_def_key, process_name, currentphase, current_phase, operate_phase, order_status, processstatus, orderstatus FROM \"/TroubleTicket/TroubleTicket/tt_troubleticket\" " +
     "WHERE (createtime >= '" + startISO + "' AND createtime <= '" + endISO + "') " +
     "OR (createtime >= '" + startISO.substring(0, 10) + " 00:00:00' AND createtime <= '" + endISO.substring(0, 10) + " 23:59:59')";
-var bsTql = "SELECT * FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
+var bsTql = "SELECT id, optionlabel, label FROM \"/Bpm/msup_options/msup_options_businessstatus\"";
 
 var liveRows = queryByTql(liveTql, {}, 5000);
 var historyRows = queryByTql(historyTql, {}, 0);
