@@ -136,11 +136,11 @@ function renderFilterPanel() {
             '  <div class="custom-filter-row" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">' +
             '    <div class="custom-filter-group">' +
             '      <span class="custom-filter-label">Start Date & Time</span>' +
-            '      <input type="datetime-local" id="customStartDateInput" class="custom-date-input" value="' + DashboardState.startDate + '" />' +
+            '      <input type="datetime-local" id="customStartDateInput" class="custom-date-input" style="color-scheme: dark;" value="' + DashboardState.startDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-group">' +
             '      <span class="custom-filter-label">End Date & Time</span>' +
-            '      <input type="datetime-local" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
+            '      <input type="datetime-local" id="customEndDateInput" class="custom-date-input" style="color-scheme: dark;" value="' + DashboardState.endDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-actions">' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
@@ -364,15 +364,9 @@ function fetchSummary() {
             searchQuery: DashboardState.searchQuery || ''
         },
         success: function (res) {
-            try {
-                var resultData = (res && res.result) || (res && res.data) || res;
-                if (resultData && resultData.summary) {
-                    DashboardState.summary = resultData.summary;
-                    renderKPIStats();
-                }
-            } catch (e) {
-                console.error('[OWS Summary Error]:', e);
-            }
+            // alarmGet.js di-cache OWS → tidak digunakan untuk update KPI card.
+            // KPI card diupdate eksklusif dari alarmBySiteGet.js (fetchTablePage)
+            // agar selalu reflect filter region/vendor yang aktif.
         },
         error: function (err) {
             console.error('[OWS Summary Service Error]:', err);
@@ -381,6 +375,24 @@ function fetchSummary() {
 }
 
 // Fetch paginated site list (tabel bawah) - calls alarmBySiteGet service
+function updateTruncationBanner(truncated) {
+    var wrapper = document.querySelector('.custom-dashboard-wrapper');
+    if (!wrapper) return;
+    var banner = document.getElementById('historyTruncationBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'historyTruncationBanner';
+        banner.style.cssText = 'background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 10px 14px; border-radius: 8px; margin: 0 0 12px 0; font-size: 13px; line-height: 1.5;';
+        wrapper.insertBefore(banner, wrapper.firstChild);
+    }
+    if (truncated) {
+        banner.style.display = 'block';
+        banner.textContent = 'Perhatian: jumlah alarm history melebihi batas maksimum sehingga data downtime mungkin tidak lengkap untuk periode ini. Perkecil rentang tanggal untuk hasil yang akurat.';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
 function fetchTablePage() {
     var tableContainer = document.getElementById('alarmTableContainer');
     if (tableContainer) {
@@ -409,6 +421,15 @@ function fetchTablePage() {
         success: function (res) {
             try {
                 var resultData = (res && res.result) || (res && res.data) || res;
+
+                if (resultData && resultData.summary) {
+                    DashboardState.summaryData = resultData.summary;
+                    // alarmBySiteGet selalu apply filter region/vendor dengan benar.
+                    // Update DashboardState.summary & render KPI agar cards ikut filter.
+                    DashboardState.summary = resultData.summary;
+                    renderKPIStats();
+                    updateTruncationBanner(!!resultData.summary.historyTruncated);
+                }
 
                 if (resultData && resultData.pagination) {
                     DashboardState.pagination.currentPage = resultData.pagination.currentPage || 1;
@@ -468,18 +489,23 @@ function renderKPIStats() {
     if (statActiveDown) statActiveDown.innerText = summary.activeDownSites || 0;
 
     if (statAvail) {
-        var avgAvailPctStr = summary.avgAvailabilityPct || '100.0';
-        var valNum = parseFloat(avgAvailPctStr) || 100;
-        var kpiColor = '#10b981'; // Hijau > 80%
-        if (valNum <= 40) {
-            kpiColor = '#ef4444'; // Merah (0 - 40%)
-        } else if (valNum <= 60) {
-            kpiColor = '#f97316'; // Oren (40 - 60%)
-        } else if (valNum <= 80) {
-            kpiColor = '#f59e0b'; // Kuning (60 - 80%)
+        var avgAvailPctStr = summary.avgAvailabilityPct || '-';
+        if (avgAvailPctStr === '-' || avgAvailPctStr === '') {
+            statAvail.innerText = '-';
+            statAvail.style.color = '#71717a'; // Abu-abu netral jika tidak ada data
+        } else {
+            var valNum = parseFloat(avgAvailPctStr) || 100;
+            var kpiColor = '#10b981'; // Hijau > 80%
+            if (valNum <= 40) {
+                kpiColor = '#ef4444'; // Merah (0 - 40%)
+            } else if (valNum <= 60) {
+                kpiColor = '#f97316'; // Oren (40 - 60%)
+            } else if (valNum <= 80) {
+                kpiColor = '#f59e0b'; // Kuning (60 - 80%)
+            }
+            statAvail.innerText = avgAvailPctStr + "%";
+            statAvail.style.color = kpiColor;
         }
-        statAvail.innerText = avgAvailPctStr + "%";
-        statAvail.style.color = kpiColor;
     }
 
     if (statMost) statMost.innerText = summary.mostAffectedSite || '-';
@@ -498,7 +524,6 @@ function populateFilterDropdowns() {
     var regSelect = document.getElementById('customRegionSelect');
     var venSelect = document.getElementById('customVendorSelect');
     if (!regSelect || !venSelect) return;
-    if (regSelect.options.length > 1 && venSelect.options.length > 1) return;
 
     var currentReg = DashboardState.selectedRegion;
     var currentVen = DashboardState.selectedVendor;
@@ -506,10 +531,28 @@ function populateFilterDropdowns() {
     var regions = {};
     var vendors = {};
 
-    for (var i = 0; i < DashboardState.allSites.length; i++) {
-        var s = DashboardState.allSites[i];
-        if (s.regionLabel && s.regionLabel !== '-') regions[s.regionLabel] = true;
-        if (s.vendorLabel && s.vendorLabel !== '-') vendors[s.vendorLabel] = true;
+    // Prioritize master region list from server response if available
+    if (DashboardState.summaryData && DashboardState.summaryData.availableRegions && DashboardState.summaryData.availableRegions.length > 0) {
+        for (var ar = 0; ar < DashboardState.summaryData.availableRegions.length; ar++) {
+            regions[DashboardState.summaryData.availableRegions[ar]] = true;
+        }
+    } else {
+        for (var i = 0; i < DashboardState.allSites.length; i++) {
+            var s = DashboardState.allSites[i];
+            if (s.regionLabel && s.regionLabel !== '-') regions[s.regionLabel] = true;
+        }
+    }
+
+    // Prioritize master vendor list from server response if available
+    if (DashboardState.summaryData && DashboardState.summaryData.availableVendors && DashboardState.summaryData.availableVendors.length > 0) {
+        for (var av = 0; av < DashboardState.summaryData.availableVendors.length; av++) {
+            vendors[DashboardState.summaryData.availableVendors[av]] = true;
+        }
+    } else {
+        for (var j = 0; j < DashboardState.allSites.length; j++) {
+            var vSite = DashboardState.allSites[j];
+            if (vSite.vendorLabel && vSite.vendorLabel !== '-') vendors[vSite.vendorLabel] = true;
+        }
     }
 
     var sortedRegions = Object.keys(regions).sort();
@@ -583,12 +626,12 @@ function renderTable() {
             html += '' +
                 '<div class="custom-site-grid-card custom-table-row" data-site-index="' + gGlobalIndex + '">' +
                 '  <div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
-                '    <div>' +
-                '      <div style="font-weight: 700; color: #f4f4f5; font-size: 15px;">' + gSite.siteName + '</div>' +
+                '    <div class="custom-site-grid-main">' +
+                '      <div class="custom-site-grid-name" style="font-weight: 700; color: #f4f4f5; font-size: 15px;" title="' + (gSite.siteName || '') + '">' + gSite.siteName + '</div>' +
                 '      <div style="font-size: 11px; color: #38bdf8; font-weight: 600; font-family: monospace;">ID: ' + (gSite.siteId || '-') + '</div>' +
-                '      <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #a1a1aa;">' + gRegion + '</span> • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
+                '      <div class="custom-site-grid-meta" style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #a1a1aa;">' + gRegion + '</span> • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
                 '    </div>' +
-                '    <div style="font-size: 16px; font-weight: 700; color: ' + gColor + '; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
+                '    <div class="custom-site-grid-badge" style="font-size: 16px; font-weight: 700; color: ' + gColor + '; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
                 '  </div>' +
                 '  <div style="margin-top: 14px;">' +
                 '    <div class="custom-avail-bar-wrapper"><div class="custom-avail-bar-inner" style="width: ' + gPct + '%; background-color: ' + gColor + ';"></div></div>' +

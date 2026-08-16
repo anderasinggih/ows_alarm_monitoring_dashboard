@@ -1,0 +1,50 @@
+<div class="custom-mgmt-wrapper">
+  <!-- HEADER TITLE & REFRESH BUTTON PLACEHOLDER -->
+  <div class="custom-mgmt-header-container">
+    <div>
+      <h1 class="custom-mgmt-title">Data Management — Import Batches</h1>
+      <p class="custom-mgmt-subtitle">Manage, Audit & Delete Availability Data Upload Batches</p>
+    </div>
+    <div id="mgmtRefreshBtnPlaceholder"></div>
+  </div>
+
+  <!-- 1. SHADCN KPI SUMMARY CARDS -->
+  <div class="custom-mgmt-kpi-grid">
+    <div class="custom-mgmt-kpi-card">
+      <div class="custom-mgmt-kpi-header">
+        <span class="custom-mgmt-kpi-title">Total Import Batches</span>
+        <span class="custom-mgmt-kpi-badge custom-mgmt-badge-info">BATCHES</span>
+      </div>
+      <span class="custom-mgmt-kpi-value" id="mgmtStatTotalBatches">0</span>
+    </div>
+
+    <div class="custom-mgmt-kpi-card">
+      <div class="custom-mgmt-kpi-header">
+        <span class="custom-mgmt-kpi-title">Total Managed Records</span>
+        <span class="custom-mgmt-kpi-badge custom-mgmt-badge-success">RECORDS</span>
+      </div>
+      <span class="custom-mgmt-kpi-value" id="mgmtStatTotalRecords" style="color: #34d399;">0</span>
+    </div>
+
+    <div class="custom-mgmt-kpi-card">
+      <div class="custom-mgmt-kpi-header">
+        <span class="custom-mgmt-kpi-title">Latest Upload Batch</span>
+        <span class="custom-mgmt-kpi-badge custom-mgmt-badge-warning">LATEST</span>
+      </div>
+      <span class="custom-mgmt-kpi-value" id="mgmtStatLatestUpload" style="font-size: 20px; font-family: monospace;">-</span>
+    </div>
+  </div>
+
+  <!-- 2. DATA BATCHES GRID PANEL -->
+  <div class="custom-mgmt-panel-card">
+    <div class="custom-mgmt-panel-header">
+      <span>IMPORT BATCHES HISTORY</span>
+    </div>
+    <div class="custom-mgmt-table-container" id="mgmtTableContainer">
+      <div style="color: #a1a1aa; padding: 32px; text-align: center;">Loading batch upload history...</div>
+    </div>
+  </div>
+
+  <!-- 3. CONFIRM DELETE MODAL POPUP PLACEHOLDER -->
+  <div id="customMgmtDeleteModal" class="custom-mgmt-modal-overlay" style="display: none !important;"></div>
+</div>
