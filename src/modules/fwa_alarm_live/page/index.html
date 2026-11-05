@@ -1,0 +1,128 @@
+<div class="custom-dashboard-wrapper">
+  <!-- HEADER TITLE -->
+  <div class="custom-header-container">
+    <div class="custom-header-main">
+      <h1 class="custom-title">Fixed Wireless Access Site Availability & Outages</h1>
+    </div>
+  </div>
+
+  <!-- FILTER PANEL PLACEHOLDER (Dynamic Injected via JS) -->
+  <div id="customFilterPanelPlaceholder"></div>
+
+  <!-- 1. KPI METRIC CARDS (GitHub style, clean, compact, no badges) -->
+  <div class="custom-kpi-grid">
+    <!-- Card 1: Total Alarms -->
+    <div class="custom-kpi-card" id="customKpiCardTotalAlarms" role="button" tabindex="0" title="Filter active down sites">
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">Total Outages Recorded</span>
+        <div class="custom-kpi-value-row">
+          <span class="custom-kpi-value" id="statTotalAlarms">0</span>
+          <span class="custom-kpi-unit">alarms</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Sites Affected -->
+    <div class="custom-kpi-card" id="customKpiCardSitesAffected" role="button" tabindex="0" title="Filter all affected sites in window">
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">Impacted Sites</span>
+        <div class="custom-kpi-value-row">
+          <span class="custom-kpi-value" id="statSitesAffected">0</span>
+          <span class="custom-kpi-unit">sites</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Active Down Sites -->
+    <div class="custom-kpi-card" id="customKpiCardActiveDown" role="button" tabindex="0" title="Filter currently active down sites">
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">Currently Down</span>
+        <div class="custom-kpi-value-row">
+          <span class="custom-kpi-value custom-val-critical" id="statActiveDownSites">0</span>
+          <span class="custom-kpi-unit">active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Average Availability -->
+    <div class="custom-kpi-card">
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">Average Availability</span>
+        <div class="custom-kpi-value-row">
+          <span class="custom-kpi-value" id="statAvgAvail">100.00%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5: Most Impacted Site -->
+    <div class="custom-kpi-card">
+      <div class="custom-kpi-content">
+        <span class="custom-kpi-title">Peak Downtime Site</span>
+        <div class="custom-kpi-node-name" id="statMostAffected">-</div>
+        <div class="custom-kpi-node-duration" id="statMostAffectedDowntime">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DAILY TREND CHART -->
+  <div class="custom-panel-card">
+    <div class="custom-chart-header">
+      <div>
+        <h3 class="custom-chart-title">Daily Network Availability & Site Count</h3>
+        <p class="custom-chart-subtitle">Day-over-day operational uptime percentage correlated with total active BTS sites</p>
+      </div>
+      <div class="custom-chart-controls">
+        <div class="custom-chart-legend">
+          <div class="custom-legend-item">
+            <span id="customDailyLegendBts" class="custom-legend-indicator custom-indicator-line-blue"></span>
+            <span>Active BTS Count</span>
+          </div>
+          <div class="custom-legend-item">
+            <span id="customDailyLegendAvail" class="custom-legend-indicator custom-indicator-line"></span>
+            <span>Average Availability</span>
+          </div>
+        </div>
+        <div id="customDailyChartToggleWrapper" class="custom-view-toggle-group"></div>
+      </div>
+    </div>
+    <div class="custom-chart-body" id="customDailyChartCanvasWrapper">
+      <div class="custom-state-notice">Loading daily trend metrics...</div>
+    </div>
+  </div>
+
+  <!-- 3. WEEKLY TREND CHART (Thursday - Wednesday Cycle) -->
+  <div class="custom-panel-card">
+    <div class="custom-chart-header">
+      <div>
+        <h3 class="custom-chart-title">Weekly Operational Availability (Thu - Wed Cycle)</h3>
+        <p class="custom-chart-subtitle">Aggregated weekly network performance aligned with standard reporting cycle</p>
+      </div>
+      <div class="custom-chart-controls">
+        <div class="custom-chart-legend">
+          <div class="custom-legend-item">
+            <span id="customWeeklyLegendBts" class="custom-legend-indicator custom-indicator-line-blue"></span>
+            <span>Active BTS Count</span>
+          </div>
+          <div class="custom-legend-item">
+            <span id="customWeeklyLegendAvail" class="custom-legend-indicator custom-indicator-line"></span>
+            <span>Average Availability</span>
+          </div>
+        </div>
+        <div id="customWeeklyChartToggleWrapper" class="custom-view-toggle-group"></div>
+      </div>
+    </div>
+    <div class="custom-chart-body" id="customWeeklyChartCanvasWrapper">
+      <div class="custom-state-notice">Loading weekly cycle metrics...</div>
+    </div>
+  </div>
+
+  <!-- 4. SITE AVAILABILITY & OUTAGES TABLE -->
+  <div class="custom-panel-card">
+    <div class="custom-panel-body" id="alarmTableContainer">
+      <div class="custom-state-notice">Loading site outage and availability records...</div>
+    </div>
+  </div>
+
+  <!-- 5. SITE DETAIL DRILLDOWN MODAL -->
+  <div id="customSiteDetailModal" class="custom-modal-overlay" style="display: none !important;"></div>
+</div>

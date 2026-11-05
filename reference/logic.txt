@@ -1,0 +1,156 @@
+==================================================================================
+LOGIC SPECIFICATION: OLT DEVICE & SITE AVAILABILITY REPORT (DAILY)
+================================================================================
+Report Frequency        : DAILY (1 Full Day / 24 Hours)
+Source Data 1 (CMDB)    : OLT list device.xlsx (Sheet: 'Device')
+Source Data 2 (Alarms)  : alarmexport YYYY-MM-DD (e.g. 1187_20260910_070654.csv)
+Source Data 3 (Tickets) : Incident Ticket_D:M:YYYY.xlsx (e.g. Incident Ticket_9:9:2026.xlsx)
+Output File Name Pattern: OLT_Device_Site_Availability_Output_YYYYMMDD.xlsx (or .docx)
+================================================================================
+
+1. DATA SOURCES, UNIVERSE OF DEVICES & JOIN DEFINITIONS
+--------------------------------------------------------------------------------
+A. BASE UNIVERSE (COMPLETE POPULATION):
+  - The report MUST dynamically include ALL devices listed in 'OLT list device.xlsx' (sheet 'Device') based on whatever latest data exists in the master CMDB (no hardcoded row limit; no master device may be omitted).
+  - Devices that do NOT experience any alarm/outage during the reporting date range
+    must still appear in the output with:
+      * TT Related Ticket            = blank / empty
+      * Service Interruption Duration= blank / empty
+      * Alarm Name                   = blank / empty
+      * Device Availability          = 100%
+      * Site Availability            = averaged across devices under the same Site ID
+
+B. PRIMARY KEY RELATIONSHIPS & JOINS:
+  1. Master Inventory to Alarms (LEFT JOIN):
+     - Left Table : OLT list device.xlsx [Device Name*] (Column 3 / C)
+     - Right Table: Alarm Dump CSV [Alarm Source] (Column 4 / D)
+     - Join Key   : TRIM(Alarm Dump.`Alarm Source`) = TRIM(Master.`Device Name*`)
+
+  2. Alarms to Incident Tickets (LEFT JOIN on Ticket ID):
+     - Left Table : Alarm Dump CSV [Ticket ID] (Column 7 / G)
+     - Right Table: Incident Ticket Excel [Ticket ID] (Column 2 / B)
+     - Target Col : Incident Ticket Excel [Service Interruption Duration(Process TT)] (Column 14 / N)
+
+C. TARGET COLUMN MAPPING (9 Columns in Total):
+  1. "Device ID"                    <- From Master Column "Device ID" (Column 1 / A)
+  2. "Device Name"                  <- From Master Column "Device Name*" (Column 3 / C)
+  3. "Site ID"                      <- From Master Column "Site ID" (Column 11 / K)
+  4. "Site Name"                    <- From Master Column "Site Name" (Column 10 / J)
+  5. "TT Related Ticket"            <- From Alarm Dump "Ticket ID" (Column 7 / G) [Distinct, comma-separated; blank if none]
+  6. "Service Interruption Duration"<- From Incident Ticket "Service Interruption Duration(Process TT)" (Column 14 / N)
+                                       [If multiple tickets on 1 device, calculate the AVERAGE duration in "HH:MM"]
+  7. "Alarm Name"                   <- From Alarm Dump "Alarm Name" (Column 5 / E) [Distinct, comma-separated; blank if none]
+  8. "Device Availability"          <- Calculated from device downtime within daily window (100% if no outage)
+  9. "Site Availability"            <- Calculated from average Device Availability per Site ID (vertically merged)
+
+--------------------------------------------------------------------------------
+2. TIME WINDOW HANDLING & DATA SOURCE VALIDATION (PROMPT LOGIC)
+--------------------------------------------------------------------------------
+A. DEFAULT BEHAVIOR:
+  - Default report mode is DAILY (1 full day, 24.0 hours / 86,400 seconds).
+
+B. USER PROMPT PARSING & BEHAVIOR FLOW:
+  Case 1: User specifies a SINGLE DATE (e.g. "9 September 2026", "2026-09-09"):
+    - Set TARGET_DATE = Specified Date.
+    - START_DATE = TARGET_DATE 00:00:00
+    - END_DATE   = TARGET_DATE 23:59:59
+    - Total_Window_Hours = 24.0 hours
+    - Output Filename: OLT_Device_Site_Availability_Output_YYYYMMDD.xlsx
+    - Immediately proceed to process and export the daily report.
+
+  Case 2: User specifies a DATE RANGE (e.g. "1 Sep sampai 7 Sep 2026", "2026-09-01 s/d 2026-09-07"):
+    - Step 1: Inspect available data sources (raw alarm dump CSV & incident ticket files) to check
+              the date coverage available in the environment.
+    - Step 2: Validate whether the requested date range is fully covered by the data sources:
+        * IF DATA IS INSUFFICIENT / NOT COVERED:
+          - DO NOT proceed with incomplete calculations.
+          - Prompt/notify the user with a confirmation message:
+            "Data source yang tersedia tidak memenuhi rentang tanggal yang diminta [START_DATE - END_DATE]. Tanggal yang tersedia dalam data source saat ini adalah: [AVAILABLE_DATE_RANGE]. Mohon konfirmasi atau sediakan data dump untuk periode tersebut."
+        * IF DATA IS SUFFICIENT / COVERED:
+          - Proceed with processing for the full requested date range.
+          - Total_Window_Hours = (END_DATE - START_DATE) in hours (e.g. 168.0 hours for 7 days).
+          - Output Filename: OLT_Device_Site_Availability_Output_YYYYMMDD_to_YYYYMMDD.xlsx
+
+C. DATE CLIPPING RULES FOR EACH ALARM ROW:
+  - An alarm record is considered valid for the evaluated time window if:
+      First Occurred On <= END_DATE AND
+      (Cleared On >= START_DATE OR Cleared On is empty/null/future)
+  - Effective Down Start = MAX(First Occurred On, START_DATE)
+  - Effective Down End   = MIN(Cleared On, END_DATE) [Use END_DATE if cleared is null/empty]
+  - Downtime Duration    = Effective Down End - Effective Down Start (in seconds/hours)
+
+--------------------------------------------------------------------------------
+3. AGGREGATION & CALCULATION RULES
+--------------------------------------------------------------------------------
+
+A. DEVICE LEVEL AGGREGATION:
+  - Outage Interval Union (Merge Overlaps):
+    * For devices with multiple alarms, merge overlapping [Effective Down Start, Effective Down End] intervals
+      to prevent double-counting of downtime.
+    * Total_Device_Downtime = Sum of merged non-overlapping outage intervals (in hours).
+    * Device Availability = MAX(0.0, ((24.0 - Total_Device_Downtime) / 24.0) * 100)
+    * Format: Two decimal places with comma separator without '%' symbol (e.g., 95,86; 100,00; or 100).
+
+  - TT Related Ticket & Service Interruption Duration Logic:
+    * Collect all distinct Ticket IDs associated with the device's alarms during the daily window.
+    * TT Related Ticket: Comma-separated distinct Ticket IDs (e.g. "INC-20260909-00000698, INC-20260909-00000962").
+    * Service Interruption Duration:
+      - Match each Ticket ID to the Incident Ticket file [Ticket ID].
+      - Retrieve the duration string from [Service Interruption Duration(Process TT)] (formatted as "HH:MM").
+      - Convert each duration to total minutes/seconds:
+          Total_Minutes = (Hours * 60) + Minutes
+      - Rule: If multiple tickets exist for a device, calculate the AVERAGE duration:
+          Average_Minutes = ROUND(SUM(Total_Minutes of valid tickets) / COUNT(valid tickets))
+          Average_Duration = String format "HH:MM" (e.g. 63 minutes -> "01:03")
+      - Example:
+          If Ticket INC-001 has duration "11:00" (660 mins) and INC-002 has duration "11:06" (666 mins),
+          Average = (660 + 666) / 2 = 663 mins -> Output: "11:03".
+      - If only 1 ticket has duration: Output that duration directly.
+      - If no tickets exist or no duration found: Leave blank ("").
+
+  - Alarm Name:
+    * Distinct Alarm Names associated with the device's outages joined by comma (e.g., "Communication with the device failed").
+    * If no alarms: Leave blank ("").
+
+  - For Normal Devices (no alarms/outages during the day):
+    * Total_Device_Downtime = 0.0 hours
+    * Device Availability   = 100
+    * TT Related Ticket     = ""
+    * Service Interruption Duration = ""
+    * Alarm Name            = ""
+
+B. SITE LEVEL AGGREGATION:
+  - Group all evaluated devices by their "Site ID".
+  - Calculate:
+    * Site Availability = AVERAGE of (Device Availability of ALL devices under the same Site ID).
+  - Format: Two decimal places with comma separator without '%' symbol (e.g., 95,86; 99,50; 100,00).
+
+--------------------------------------------------------------------------------
+4. OUTPUT TABLE STRUCTURE & FORMATTING RULES (.xlsx / .docx)
+--------------------------------------------------------------------------------
+CRITICAL REQUIREMENTS:
+1. Dynamic Output Filename:
+   - For Daily: Must include the target date in YYYYMMDD format.
+     Example: `OLT_Device_Site_Availability_Output_20260909.xlsx`
+   - For Date Range (if requested and validated): Must include start and end dates.
+     Example: `OLT_Device_Site_Availability_Output_20260901_to_20260907.xlsx`
+2. Complete Population:
+   - Must dynamically include all devices present in the latest 'OLT list device.xlsx' (sheet 'Device').
+3. Strict 9-Column Sequence:
+   [Device ID | Device Name | Site ID | Site Name | TT Related Ticket | Service Interruption Duration | Alarm Name | Device Availability | Site Availability]
+
+Presentation Rules:
+  1. Table Header:
+     - 9 columns: Dark Navy/Grey fill, white bold text, centered alignment.
+  2. Row Grouping & Sorting:
+     - Group rows by "Site ID", then sort by "Device Name" ascending.
+  3. Cell Merging for Site Availability:
+     - For multiple devices under the same Site ID, the "Site Availability" column
+       MUST be vertically merged across all rows belonging to that Site ID.
+     - Content of the merged cell: Display the calculated Site Availability value once,
+       centered vertically and horizontally.
+  4. Number Formatting:
+     - DO NOT use the percent symbol ("%"). Display as clean numeric values with comma decimal separator:
+       * Device Availability: 2 decimals with comma (e.g., "95,86", "100,00" or integer "100")
+       * Site Availability  : 2 decimals with comma (e.g., "95,86", "99,50", "100,00")
+================================================================================

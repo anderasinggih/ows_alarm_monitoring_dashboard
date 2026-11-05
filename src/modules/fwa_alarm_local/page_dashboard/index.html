@@ -1,0 +1,126 @@
+<div class="custom-local-wrapper">
+  <!-- HEADER TITLE -->
+  <div class="custom-local-header-container">
+    <div>
+      <h1 class="custom-local-title">Site Availability Dashboard</h1>
+      <p class="custom-local-subtitle">Historical Availability Report — Local Import Data</p>
+    </div>
+  </div>
+
+  <!-- FILTER PANEL PLACEHOLDER (Dynamic Injected via JS) -->
+  <div id="localFilterPanelPlaceholder"></div>
+
+  <!-- 1. SHADCN KPI SUMMARY CARDS -->
+  <div class="custom-local-kpi-grid">
+    <div class="custom-local-kpi-card">
+      <div class="custom-local-kpi-header">
+        <span class="custom-local-kpi-title">Total Sites</span>
+        <span class="custom-local-kpi-icon-badge custom-local-badge-info">SITE</span>
+      </div>
+      <span class="custom-local-kpi-value" id="localStatTotalSites">0</span>
+    </div>
+
+    <div class="custom-local-kpi-card">
+      <div class="custom-local-kpi-header">
+        <span class="custom-local-kpi-title">100% Available Sites</span>
+        <span class="custom-local-kpi-icon-badge custom-local-badge-success">OK</span>
+      </div>
+      <span class="custom-local-kpi-value" id="localStatNormalSites" style="color: #34d399;">0</span>
+    </div>
+
+    <div class="custom-local-kpi-card">
+      <div class="custom-local-kpi-header">
+        <span class="custom-local-kpi-title">Avg. Availability</span>
+        <span class="custom-local-kpi-icon-badge custom-local-badge-success">SLA</span>
+      </div>
+      <span class="custom-local-kpi-value" id="localStatAvgAvail" style="color: #34d399;">100.0%</span>
+    </div>
+
+    <div class="custom-local-kpi-card">
+      <div class="custom-local-kpi-header">
+        <span class="custom-local-kpi-title">Total Affected Site</span>
+        <span class="custom-local-kpi-icon-badge custom-local-badge-danger">AFF</span>
+      </div>
+      <span class="custom-local-kpi-value" id="localStatSitesAffected" style="color: #f87171;">0</span>
+    </div>
+
+    <div class="custom-local-kpi-card">
+      <div class="custom-local-kpi-header">
+        <span class="custom-local-kpi-title">Most Affected Site</span>
+        <span class="custom-local-kpi-icon-badge custom-local-badge-info">TOP</span>
+      </div>
+      <div>
+        <span class="custom-local-kpi-value" id="localStatMostAffected" style="font-size: 16px; word-break: break-all;">-</span>
+        <span id="localStatMostAffectedDowntime" style="font-size: 12px; color: #a1a1aa; margin-top: 4px; display: block;">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DAILY TREND CHART CARD (TOTAL SITE VS AVERAGE AVAILABILITY) -->
+  <div class="custom-local-panel-card" style="margin-bottom: 20px;">
+    <div class="custom-local-chart-header">
+      <div>
+        <h3 class="custom-local-chart-title">Total Site vs Average Availability (Daily)</h3>
+        <p class="custom-local-chart-subtitle">Daily trend breakdown comparing active BTS count & SLA availability %</p>
+      </div>
+      <div class="custom-local-chart-legend">
+        <div class="custom-local-legend-item">
+          <span class="custom-local-legend-dot custom-legend-bar"></span>
+          <span>Total Count of BTS ID</span>
+        </div>
+        <div class="custom-local-legend-item">
+          <span class="custom-local-legend-dot custom-legend-line"></span>
+          <span>Average of availability</span>
+        </div>
+      </div>
+    </div>
+    <div class="custom-local-chart-body" id="localChartCanvasWrapper">
+      <div style="color: #a1a1aa; padding: 48px; text-align: center;">Loading daily chart data...</div>
+    </div>
+  </div>
+
+  <!-- 2B. WEEKLY TREND CHART CARD (THURSDAY - WEDNESDAY CYCLE) -->
+  <div class="custom-local-panel-card" style="margin-bottom: 20px;">
+    <div class="custom-local-chart-header">
+      <div>
+        <h3 class="custom-local-chart-title">Weekly Availability Trend (Thursday — Wednesday)</h3>
+        <p class="custom-local-chart-subtitle">Weekly aggregated availability trend grouped by Thursday to Wednesday operational cycle</p>
+      </div>
+      <div class="custom-local-chart-legend">
+        <div class="custom-local-legend-item">
+          <span class="custom-local-legend-dot custom-legend-bar"></span>
+          <span>Total Count of BTS ID</span>
+        </div>
+        <div class="custom-local-legend-item">
+          <span class="custom-local-legend-dot custom-legend-line"></span>
+          <span>Average of availability</span>
+        </div>
+      </div>
+    </div>
+    <div class="custom-local-chart-body" id="localWeeklyChartCanvasWrapper">
+      <div style="color: #a1a1aa; padding: 48px; text-align: center;">Loading weekly chart data...</div>
+    </div>
+  </div>
+
+  <!-- 3. REGIONAL AVAILABILITY ANALYSIS BREAKDOWN PANEL -->
+  <div class="custom-local-panel-card" style="margin-bottom: 24px;">
+    <div class="custom-local-panel-header">
+      <span>REGIONAL AVAILABILITY BREAKDOWN</span>
+    </div>
+    <div id="localRegionSummaryContainer" class="custom-local-table-container">
+      <div style="color: #a1a1aa; padding: 24px; text-align: center;">Loading regional summary...</div>
+    </div>
+  </div>
+
+  <!-- 4. AVAILABILITY BY SITE TABLE PANEL -->
+  <div class="custom-local-panel-card">
+    <div class="custom-local-table-container" id="localTableContainer">
+      <div style="color: #a1a1aa; padding: 32px; text-align: center;">Loading availability data...</div>
+    </div>
+  </div>
+
+  <!-- 5. SITE DETAIL MODAL -->
+  <div id="customLocalSiteDetailModal" class="custom-local-modal-overlay" style="display: none !important;"></div>
+</div>
+
+<script src="${staticContextPath}/${jslibPrefix}/${tenant_id}/CN_GSC_ID_Surge_Noc_Dashboard/Dashboard/echarts/0.0.1/echarts.min.js"></script>

@@ -1,0 +1,31 @@
+﻿ description, ems_ipv6, ems_version, ne_version, vendor, ems_address, ems_ip, installation_date, ems_port, license_expired_dae, ems_type, server_mode, ems_name, site, equip_type, project_name, id, keycode, actual_model_id, active, change_time
+ , , , , , , 10.128.80.20, , , , a05446e7-1d21-11f1-a9c6-0255ac1215b4, , Nokia_MPLS, , , , 07e8b638-9bc5-11f1-85c1-0255ac12157c, Nokia_MPLS, , true,	 1787140596875
+ , , , , , , 10.0.9.5, ,	 6666, , a63f20e2-f812-11f0-bf78-0255ac120048, , FWA_Huawei_Wireless MAE-Access_New, , , , 111bc53d-79da-11f1-a4f6-0255ac1200a9, FWA_Huawei_Wireless MAE-Access_New, , true,	 1783411292206
+ api2.smartcool.id, , , api2.smartcool.id, , , api2.smartcool.id, , , , 256b78d8-9fa0-11f1-ab82-0255ac1215a3, , SmartCool, , , , 330315f2-9fa0-11f1-8c5b-0255ac12002c, SmartCool, , true,	 1787564582462
+ , , , , , , 10.0.5.10, ,	 31920, , d3f1a613-e15e-11f0-902d-0255ac120962, , Huawei_eSight_Jakarta, , , , 39a03c42-37a5-11f1-b6de-0255ac121579, Huawei_eSight_Jakarta, , true,	 1776131820113
+ , , , , , , 10.169.169.39, , 22, , b99cdcc4-f812-11f0-9bd6-0255ac12057f, , probe_mcp, , , , 3a669bc3-4f5a-11f1-a242-0255ac1215a4, probe_mcp, , true,	 1778745000241
+ , , , , , , 10.128.80.11, , , , a05446e7-1d21-11f1-a9c6-0255ac1215b4, , Nokia_EMS, , , , 41991c8d-704a-11f1-93e1-0255ac120577, Nokia_EMS, , true,	 1782359965564
+ , , , , , , 10.96.6.19, ,	 6666, , 89a6802a-002b-11f1-99d5-0255ac1215bf, , FTTH_Huawei_NCE_FAN, , , , 518413bc-002b-11f1-91f4-0255ac120459, FTTH_Huawei_NCE_FAN, , true,	 1773216689647
+ , 10.3.8.2, , , , , 10.3.8.2, ,	 1610, , 9340f564-1d21-11f1-8e24-0255ac121574, , FWA_Fiberhome_UEM5000_Prod_Test, , , , 521ad383-7109-11f1-a38d-0255ac1215ba, FWA_Fiberhome_UEM5000_Prod_Test, , false,	 1782446494584
+ , , , , , , 10.96.6.18, ,	 6666, , b99cdcc4-f812-11f0-9bd6-0255ac12057f, , MPLS_Huawei_NC_IP, , , , 5a23f217-001e-11f1-ac8e-0255ac1202e2, MPLS_Huawei_NC_IP, , true,	 1773216689668
+ , , , , , , 10.3.8.6, ,	 1610, , 9340f564-1d21-11f1-8e24-0255ac121574, , FWA_Fiberhome_UEM5000_New, , , , 5a931554-6af0-11f1-8668-0255ac121588, FWA_Fiberhome_UEM5000_New, , true,	 1782446501746
+ , , , , , , 10.96.6.50, ,	 162, , eed8d647-00d8-11f1-ba94-0255ac12102f, , FWA_Fiberhome_UMC2-A, , , , 62742d0d-00d9-11f1-ba94-0255ac12102f, FWA_Fiberhome_UMC2-A, , true,	 1773216689688
+ , , , , , , 10.169.169.56, , , , d3ebb27c-e15e-11f0-902d-0255ac120962, , Orexsai_RAN_Test, , , , 7415b33d-2f34-11f1-adfb-0255ac1200a6, Orexsai_RAN_Test, , true,	 1775203775758
+ , , , , , , 10.0.8.196, ,	 6666, , a63f20e2-f812-11f0-bf78-0255ac120048, , FWA_Huawei_Wireless MAE-Access, , , , 7e48f922-fda8-11f0-bf78-0255ac120048, FWA_Huawei_Wireless MAE-Access, , true,	 1773216689872
+ , , , , , , 10.169.169.53, ,	 9090, , b99cdcc4-f812-11f0-9bd6-0255ac12057f, , curl_test, , , , 87c34db7-4f44-11f1-8269-0255ac12004c, curl_test, , true,	 1778729466883
+ , , , , , , 10.5.0.96, , , , d3ebb27c-e15e-11f0-902d-0255ac120962, , FWA_ZTE_RAN_New, , , , 8ffb8736-5260-11f1-a242-0255ac1215a4, FWA_ZTE_RAN_New, , true,	 1779071011116
+ , , , , , , 10.9.23.41, ,	 10427, , b8c4d6ae-1d21-11f1-81e7-0255ac12102f, , FWA_Zabbix, , , , b055607c-4209-11f1-a7a4-0255ac12004a, FWA_Zabbix, , true,	 1777274480572
+ , , , , , , 10.5.0.246, , , , d3ebb27c-e15e-11f0-902d-0255ac120962, , FWA_ZTE_RAN, , , , cfe1f1ba-1603-11f1-81e7-0255ac12102f, FWA_ZTE_RAN, , true,	 1773216689821
+ , , , , , , , , , , 870273c6-f812-11f0-ad90-0255ac121570, , Huawei NCE-T, , , , dc922463-f812-11f0-99d5-0255ac1215bf, Huawei NCE-T, , false,	 1769756507561
+ , , , , , , 10.100.10.3, ,	 6666, , 870273c6-f812-11f0-ad90-0255ac121570, , DWDM_Huawei_NCE_T, , , , e1f4fa48-00a8-11f1-afd7-0255ac120034, DWDM_Huawei_NCE_T, , true,	 1773216689711
+ , , , , , , , , , , a63f20e2-f812-11f0-bf78-0255ac120048, , Huawei MAE RAN, , , , e58ba843-f812-11f0-bf78-0255ac120048, Huawei MAE RAN, , false,	 1769756507561
+ , , , , , , 10.0.8.9, ,	 6666, , 8cba0065-fd7b-11f0-bf78-0255ac120048, , FWA_Huawei_Core Network MAE(A), , , , e7cf1bd1-fd7b-11f0-818e-0255ac120024, FWA_Huawei_Core Network MAE(A), , true,	 1773216689730
+ , , , , , , 103.172.24.8, ,	 58080, , b8c4d6ae-1d21-11f1-81e7-0255ac12102f, , Zabbix, , , , e889feaa-1d21-11f1-87be-0255ac120045, Zabbix, , true,	 1773216689768
+ , , , , , , 10.128.80.11, , , , a05446e7-1d21-11f1-a9c6-0255ac1215b4, , Nokia-DWDM/MPLS, , , , e88c6fb4-1d21-11f1-87be-0255ac120045, Nokia-DWDM/MPLS, , true,	 1773216689784
+ , , , , , , 10.128.112.128, , , , a05446e7-1d21-11f1-a9c6-0255ac1215b4, , Nokia_FTTH, , , , e88f07c9-1d21-11f1-87be-0255ac120045, Nokia_FTTH, , true,	 1773216689801
+ , , , , , , 10.128.240.204, ,	 1610, , 9340f564-1d21-11f1-8e24-0255ac121574, , FWA_Fiberhome_UEM5000, , , , e8945f04-1d21-11f1-87be-0255ac120045, FWA_Fiberhome_UEM5000, , true,	 1773216689836
+ , , , , , , 10.128.240.13, , , , a05446e7-1d21-11f1-a9c6-0255ac1215b4, , FWA_Nokia_RAN, , , , e896d007-1d21-11f1-87be-0255ac120045, FWA_Nokia_RAN, , true,	 1773216689852
+ , , , , , , 10.96.6.4, ,	 162, , 8ca86b4d-1d21-11f1-80c1-0255ac1215a8, , FTTH_Comnect_OLT, , , , e89c2741-1d21-11f1-87be-0255ac120045, FTTH_Comnect_OLT, , true,	 1773216689887
+ , , , , , , 10.96.6.149, ,	 162, , b01f8d1f-1d21-11f1-a9c6-0255ac1215b4, , Yinet (FTTH OLT), , , , e89ebf55-1d21-11f1-87be-0255ac120045, Yinet (FTTH OLT), , true,	 1773216689904
+ , , , , , , , , , , b99cdcc4-f812-11f0-9bd6-0255ac12057f, , Huawei NCE-IP, , , , eeecc7a1-f812-11f0-8336-0255ac120836, Huawei NCE-IP, , false,	 1769756507561
+ , , , , , , 10.128.240.208, ,	 163, , 11901caf-fdaa-11f0-99d5-0255ac1215bf, , FWA_Baicells_BaiOMC, , , , ffa0d06e-00ac-11f1-8c56-0255ac1200af, FWA_Baicells_BaiOMC, , true,	 1773216689753
