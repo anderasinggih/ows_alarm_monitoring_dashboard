@@ -89,13 +89,14 @@
 .custom-date-input {
   background-color: #09090b;
   border: 1px solid #27272a;
-  color: #f4f4f5;
-  padding: 8px 12px;
   border-radius: 6px;
+  color: #e4e4e7;
+  padding: 8px 10px;
   font-size: 13px;
   outline: none;
-  cursor: pointer;
-  min-width: 160px;
+  width: 215px;
+  min-width: 215px;
+  color-scheme: dark;
 }
 
 .custom-date-input:focus {
@@ -325,6 +326,34 @@
   padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.custom-site-grid-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.custom-site-grid-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.custom-site-grid-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.custom-site-grid-badge {
+  flex-shrink: 0;
+  margin-left: 8px;
+  white-space: nowrap;
 }
 
 .custom-site-grid-card:hover {

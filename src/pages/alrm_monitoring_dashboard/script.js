@@ -136,11 +136,11 @@ function renderFilterPanel() {
             '  <div class="custom-filter-row" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">' +
             '    <div class="custom-filter-group">' +
             '      <span class="custom-filter-label">Start Date & Time</span>' +
-            '      <input type="datetime-local" id="customStartDateInput" class="custom-date-input" value="' + DashboardState.startDate + '" />' +
+            '      <input type="datetime-local" id="customStartDateInput" class="custom-date-input" style="color-scheme: dark;" value="' + DashboardState.startDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-group">' +
             '      <span class="custom-filter-label">End Date & Time</span>' +
-            '      <input type="datetime-local" id="customEndDateInput" class="custom-date-input" value="' + DashboardState.endDate + '" />' +
+            '      <input type="datetime-local" id="customEndDateInput" class="custom-date-input" style="color-scheme: dark;" value="' + DashboardState.endDate + '" />' +
             '    </div>' +
             '    <div class="custom-filter-actions">' +
             '      <button id="customApplyDateBtn" class="custom-btn-apply">Apply Filter</button>' +
@@ -307,6 +307,7 @@ function renderFilterPanel() {
             '<div class="custom-view-toggle-group">' +
             '  <button id="customGridViewBtn" class="custom-view-toggle-btn ' + (DashboardState.viewMode === 'grid' ? 'custom-active' : '') + '">Grid</button>' +
             '  <button id="customListViewBtn" class="custom-view-toggle-btn ' + (DashboardState.viewMode === 'list' ? 'custom-active' : '') + '">List</button>' +
+            '  <button id="customExportBtn" class="custom-view-toggle-btn" title="Export to Excel">Export Excel</button>' +
             '</div>';
 
         headerPlaceholder.innerHTML = headerHtml;
@@ -328,6 +329,11 @@ function renderFilterPanel() {
                 gridBtn.classList.remove('custom-active');
                 renderTable();
             };
+        }
+
+        var exportBtn = document.getElementById('customExportBtn');
+        if (exportBtn) {
+            exportBtn.onclick = exportToExcel;
         }
     }
 
@@ -381,6 +387,24 @@ function fetchSummary() {
 }
 
 // Fetch paginated site list (tabel bawah) - calls alarmBySiteGet service
+function updateTruncationBanner(truncated) {
+    var wrapper = document.querySelector('.custom-dashboard-wrapper');
+    if (!wrapper) return;
+    var banner = document.getElementById('historyTruncationBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'historyTruncationBanner';
+        banner.style.cssText = 'background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 10px 14px; border-radius: 8px; margin: 0 0 12px 0; font-size: 13px; line-height: 1.5;';
+        wrapper.insertBefore(banner, wrapper.firstChild);
+    }
+    if (truncated) {
+        banner.style.display = 'block';
+        banner.textContent = 'Perhatian: jumlah alarm history melebihi batas maksimum sehingga data downtime mungkin tidak lengkap untuk periode ini. Perkecil rentang tanggal untuk hasil yang akurat.';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
 function fetchTablePage() {
     var tableContainer = document.getElementById('alarmTableContainer');
     if (tableContainer) {
@@ -409,6 +433,11 @@ function fetchTablePage() {
         success: function (res) {
             try {
                 var resultData = (res && res.result) || (res && res.data) || res;
+
+                if (resultData && resultData.summary) {
+                    DashboardState.summaryData = resultData.summary;
+                    updateTruncationBanner(!!resultData.summary.historyTruncated);
+                }
 
                 if (resultData && resultData.pagination) {
                     DashboardState.pagination.currentPage = resultData.pagination.currentPage || 1;
@@ -498,7 +527,6 @@ function populateFilterDropdowns() {
     var regSelect = document.getElementById('customRegionSelect');
     var venSelect = document.getElementById('customVendorSelect');
     if (!regSelect || !venSelect) return;
-    if (regSelect.options.length > 1 && venSelect.options.length > 1) return;
 
     var currentReg = DashboardState.selectedRegion;
     var currentVen = DashboardState.selectedVendor;
@@ -506,10 +534,28 @@ function populateFilterDropdowns() {
     var regions = {};
     var vendors = {};
 
-    for (var i = 0; i < DashboardState.allSites.length; i++) {
-        var s = DashboardState.allSites[i];
-        if (s.regionLabel && s.regionLabel !== '-') regions[s.regionLabel] = true;
-        if (s.vendorLabel && s.vendorLabel !== '-') vendors[s.vendorLabel] = true;
+    // Prioritize master region list from server response if available
+    if (DashboardState.summaryData && DashboardState.summaryData.availableRegions && DashboardState.summaryData.availableRegions.length > 0) {
+        for (var ar = 0; ar < DashboardState.summaryData.availableRegions.length; ar++) {
+            regions[DashboardState.summaryData.availableRegions[ar]] = true;
+        }
+    } else {
+        for (var i = 0; i < DashboardState.allSites.length; i++) {
+            var s = DashboardState.allSites[i];
+            if (s.regionLabel && s.regionLabel !== '-') regions[s.regionLabel] = true;
+        }
+    }
+
+    // Prioritize master vendor list from server response if available
+    if (DashboardState.summaryData && DashboardState.summaryData.availableVendors && DashboardState.summaryData.availableVendors.length > 0) {
+        for (var av = 0; av < DashboardState.summaryData.availableVendors.length; av++) {
+            vendors[DashboardState.summaryData.availableVendors[av]] = true;
+        }
+    } else {
+        for (var j = 0; j < DashboardState.allSites.length; j++) {
+            var vSite = DashboardState.allSites[j];
+            if (vSite.vendorLabel && vSite.vendorLabel !== '-') vendors[vSite.vendorLabel] = true;
+        }
     }
 
     var sortedRegions = Object.keys(regions).sort();
@@ -583,12 +629,12 @@ function renderTable() {
             html += '' +
                 '<div class="custom-site-grid-card custom-table-row" data-site-index="' + gGlobalIndex + '">' +
                 '  <div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
-                '    <div>' +
-                '      <div style="font-weight: 700; color: #f4f4f5; font-size: 15px;">' + gSite.siteName + '</div>' +
+                '    <div class="custom-site-grid-main">' +
+                '      <div class="custom-site-grid-name" style="font-weight: 700; color: #f4f4f5; font-size: 15px;" title="' + (gSite.siteName || '') + '">' + gSite.siteName + '</div>' +
                 '      <div style="font-size: 11px; color: #38bdf8; font-weight: 600; font-family: monospace;">ID: ' + (gSite.siteId || '-') + '</div>' +
-                '      <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #a1a1aa;">' + gRegion + '</span> • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
+                '      <div class="custom-site-grid-meta" style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">' + (gSite.totalAlarms || 0) + ' alarms down • <span style="color: #a1a1aa;">' + gRegion + '</span> • <span style="color: #60a5fa; font-weight: 600;">' + gVendor + '</span></div>' +
                 '    </div>' +
-                '    <div style="font-size: 16px; font-weight: 700; color: ' + gColor + '; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
+                '    <div class="custom-site-grid-badge" style="font-size: 16px; font-weight: 700; color: ' + gColor + '; background: #27272a; padding: 2px 8px; border-radius: 4px;">' + gPct + '%</div>' +
                 '  </div>' +
                 '  <div style="margin-top: 14px;">' +
                 '    <div class="custom-avail-bar-wrapper"><div class="custom-avail-bar-inner" style="width: ' + gPct + '%; background-color: ' + gColor + ';"></div></div>' +
@@ -894,6 +940,422 @@ var liveTickerInterval = null;
 function startLiveTicker() {
     // Live ticking dimatikan - semua angka statis dari data refresh
     if (liveTickerInterval) clearInterval(liveTickerInterval);
+}
+
+// ============================================================================
+// EXPORT TO EXCEL (pure JS XLSX generator, no external library)
+// ============================================================================
+var XLSX_COLUMNS = [6.5, 22, 15, 15, 12, 14, 14, 14, 14];
+
+function xlsxEscapeXml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/\u00A0/g, '&nbsp;');
+}
+
+function xlsxColName(i) {
+    var s = '';
+    i++;
+    while (i > 0) {
+        var rem = (i - 1) % 26;
+        s = String.fromCharCode(65 + rem) + s;
+        i = Math.floor((i - 1) / 26);
+    }
+    return s;
+}
+
+function xlsxUtf8Encode(str) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str);
+    var out = [];
+    for (var i = 0; i < str.length; i++) {
+        var c = str.charCodeAt(i);
+        if (c < 128) out.push(c);
+        else if (c < 2048) out.push(192 | (c >> 6), 128 | (c & 63));
+        else out.push(224 | (c >> 12), 128 | ((c >> 6) & 63), 128 | (c & 63));
+    }
+    return new Uint8Array(out);
+}
+
+var XLSX_CRC_TABLE = (function () {
+    var t = [];
+    for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c >>> 0;
+    }
+    return t;
+})();
+
+function xlsxCrc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = XLSX_CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function xlsxWriteU16(view, off, v) { view.setUint16(off, v, true); }
+function xlsxWriteU32(view, off, v) { view.setUint32(off, v, true); }
+
+// Build a store-only ZIP archive. files: [{name, data:Uint8Array}]
+function xlsxZipStore(files) {
+    var chunks = [];
+    var central = [];
+    var offset = 0;
+    for (var i = 0; i < files.length; i++) {
+        var nameB = xlsxUtf8Encode(files[i].name);
+        var data = files[i].data;
+        var crc = xlsxCrc32(data);
+        var size = data.length;
+
+        var lh = new DataView(new ArrayBuffer(30));
+        xlsxWriteU32(lh, 0, 0x04034b50);
+        xlsxWriteU16(lh, 4, 20);
+        xlsxWriteU16(lh, 6, 0x0800); // UTF-8 flag
+        xlsxWriteU16(lh, 8, 0);      // store (no compression)
+        xlsxWriteU16(lh, 10, 0);
+        xlsxWriteU16(lh, 12, 0x21);  // DOS date 1980-01-01
+        xlsxWriteU32(lh, 14, crc);
+        xlsxWriteU32(lh, 18, size);
+        xlsxWriteU32(lh, 22, size);
+        xlsxWriteU16(lh, 26, nameB.length);
+        xlsxWriteU16(lh, 28, 0);
+        var lhBytes = new Uint8Array(lh.buffer);
+        chunks.push(lhBytes, nameB, data);
+
+        var ch = new DataView(new ArrayBuffer(46));
+        xlsxWriteU32(ch, 0, 0x02014b50);
+        xlsxWriteU16(ch, 4, 20);
+        xlsxWriteU16(ch, 6, 20);
+        xlsxWriteU16(ch, 8, 0x0800);
+        xlsxWriteU16(ch, 10, 0);
+        xlsxWriteU16(ch, 12, 0);
+        xlsxWriteU16(ch, 14, 0x21);
+        xlsxWriteU32(ch, 16, crc);
+        xlsxWriteU32(ch, 20, size);
+        xlsxWriteU32(ch, 24, size);
+        xlsxWriteU16(ch, 28, nameB.length);
+        xlsxWriteU16(ch, 30, 0);
+        xlsxWriteU16(ch, 32, 0);
+        xlsxWriteU16(ch, 34, 0);
+        xlsxWriteU16(ch, 36, 0);
+        xlsxWriteU32(ch, 38, 0);
+        xlsxWriteU32(ch, 42, offset);
+        var chBytes = new Uint8Array(ch.buffer);
+        central.push(chBytes, nameB);
+
+        offset += lhBytes.length + nameB.length + data.length;
+    }
+
+    var centralSize = 0;
+    for (var j = 0; j < central.length; j++) centralSize += central[j].length;
+
+    var eocd = new DataView(new ArrayBuffer(22));
+    xlsxWriteU32(eocd, 0, 0x06054b50);
+    xlsxWriteU16(eocd, 4, 0);
+    xlsxWriteU16(eocd, 6, 0);
+    xlsxWriteU16(eocd, 8, files.length);
+    xlsxWriteU16(eocd, 10, files.length);
+    xlsxWriteU32(eocd, 12, centralSize);
+    xlsxWriteU32(eocd, 16, offset);
+    xlsxWriteU16(eocd, 20, 0);
+
+    var total = offset + centralSize + 22;
+    var out = new Uint8Array(total);
+    var pos = 0;
+    var all = chunks.concat(central);
+    for (var k = 0; k < all.length; k++) { out.set(all[k], pos); pos += all[k].length; }
+    out.set(new Uint8Array(eocd.buffer), pos);
+    return out;
+}
+
+// spec: { title, generated, filter, timeRange, footer, headers:[..], rows:[[{v,t,s}]] }
+//   t: 'n' numeric | 's' string; s: style key
+function xlsxBuildWorkbook(spec) {
+    var headers = spec.headers || [];
+    var lastCol = xlsxColName(headers.length - 1);
+    var styleMap = { title: 1, meta: 2, h: 3, l: 4, c: 5, n: 6, r: 7, g: 8, p: 9 };
+
+    var rowsXml = '';
+
+    function addRow(rowNum, cells, height) {
+        var attrs = ' r="' + rowNum + '"';
+        if (height) attrs += ' ht="' + height + '" customHeight="1"';
+        var cellsXml = '';
+        for (var i = 0; i < cells.length; i++) {
+            var cell = cells[i];
+            var ref = xlsxColName(i) + rowNum;
+            var st = styleMap[cell.s] || 4;
+            if (cell.t === 'n') {
+                cellsXml += '<c r="' + ref + '" s="' + st + '" t="n"><v>' + cell.v + '</v></c>';
+            } else {
+                cellsXml += '<c r="' + ref + '" s="' + st + '" t="inlineStr"><is><t>' + xlsxEscapeXml(cell.v) + '</t></is></c>';
+            }
+        }
+        rowsXml += '<row' + attrs + '>' + cellsXml + '</row>';
+    }
+
+    // Row 1: merged title
+    addRow(1, [{ v: spec.title, s: 'title' }], 30);
+    // Row 2: generated
+    addRow(2, [{ v: spec.generated, s: 'meta' }], 18);
+    // Row 3: filter
+    addRow(3, [{ v: spec.filter, s: 'meta' }], 18);
+    // Row 4: time range
+    addRow(4, [{ v: spec.timeRange, s: 'meta' }], 18);
+    // Row 5: spacer
+    addRow(5, [], 12);
+    // Row 6: header
+    var headerCells = [];
+    for (var hh = 0; hh < headers.length; hh++) headerCells.push({ v: headers[hh], s: 'h' });
+    addRow(6, headerCells, 24);
+
+    // Data rows
+    var dataStartRow = 7;
+    for (var r = 0; r < spec.rows.length; r++) {
+        addRow(dataStartRow + r, spec.rows[r]);
+    }
+
+    // Footer row
+    var footerRow = dataStartRow + spec.rows.length;
+    addRow(footerRow, [{ v: spec.footer, s: 'meta' }], 18);
+
+    var merges = [
+        'A1:' + lastCol + '1',
+        'A2:' + lastCol + '2',
+        'A3:' + lastCol + '3',
+        'A4:' + lastCol + '4',
+        'A6:' + lastCol + '6',
+        'A' + footerRow + ':' + lastCol + footerRow
+    ];
+
+    var colsXml = '';
+    for (var w = 0; w < XLSX_COLUMNS.length; w++) {
+        colsXml += '<col min="' + (w + 1) + '" max="' + (w + 1) + '" width="' + XLSX_COLUMNS[w] + '" customWidth="1"/>';
+    }
+
+    var sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<dimension ref="A1:' + lastCol + footerRow + '"/>' +
+        '<sheetViews><sheetView tabSelected="1" workbookViewId="0">' +
+        '<pane ySplit="6" topLeftCell="A' + dataStartRow + '" activePane="bottomLeft" state="frozen"/>' +
+        '<selection pane="bottomLeft" activeCell="G' + dataStartRow + '" sqref="G' + dataStartRow + '"/>' +
+        '</sheetView></sheetViews>' +
+        '<sheetFormatPr defaultRowHeight="15"/>' +
+        '<sheetData>' + rowsXml + '</sheetData>' +
+        '<mergeCells count="' + merges.length + '">' +
+        merges.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') +
+        '</mergeCells>' +
+        '<cols>' + colsXml + '</cols>' +
+        '</worksheet>';
+
+    var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<numFmts count="0"/>' +
+        '<fonts count="7">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="14"/><color rgb="FFFFFFFF"/><name val="Arial"/></font>' +
+        '<font><i/><sz val="10"/><color rgb="FF5F5E5A"/><name val="Arial"/></font>' +
+        '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font>' +
+        '<font><sz val="11"/><name val="Arial"/></font>' +
+        '<font><b/><sz val="11"/><color rgb="FFB3261E"/><name val="Arial"/></font>' +
+        '<font><b/><sz val="11"/><color rgb="FF1E7A3E"/><name val="Arial"/></font>' +
+        '</fonts>' +
+        '<fills count="3"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/></patternFill></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFD9E2F1"/></patternFill></fill></fills>' +
+        '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+        '<border><left style="thin"><color rgb="FF9CC3E5"/></left><right style="thin"><color rgb="FF9CC3E5"/></right><top style="thin"><color rgb="FF9CC3E5"/></top><bottom style="thin"><color rgb="FF9CC3E5"/></bottom><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="10">' +
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+        '<xf numFmtId="0" fontId="3" fillId="1" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>' +
+        '<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '<xf numFmtId="10" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' +
+        '</cellXfs>' +
+        '</styleSheet>';
+
+    var workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="Alarm Downtime by Site" sheetId="1" r:id="rId1"/></sheets>' +
+        '</workbook>';
+
+    var relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>';
+
+    var wbRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        '</Relationships>';
+
+    var contentTypesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        '</Types>';
+
+    var files = [
+        { name: '[Content_Types].xml', data: xlsxUtf8Encode(contentTypesXml) },
+        { name: '_rels/.rels', data: xlsxUtf8Encode(relsXml) },
+        { name: 'xl/workbook.xml', data: xlsxUtf8Encode(workbookXml) },
+        { name: 'xl/_rels/workbook.xml.rels', data: xlsxUtf8Encode(wbRelsXml) },
+        { name: 'xl/styles.xml', data: xlsxUtf8Encode(stylesXml) },
+        { name: 'xl/worksheets/sheet1.xml', data: xlsxUtf8Encode(sheetXml) }
+    ];
+
+    return xlsxZipStore(files);
+}
+
+// Format "2026-08-04T00:00" -> "04 Aug 2026, 00:00:00"
+function xlsxFormatTs(ts) {
+    if (!ts) return '';
+    var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var parts = String(ts).split('T');
+    var dateParts = (parts[0] || '').split('-');
+    var timePart = parts[1] || '00:00';
+    if (timePart.length === 5) timePart += ':00';
+    var y = dateParts[0] || '';
+    var m = parseInt(dateParts[1], 10) || 1;
+    var d = dateParts[2] || '';
+    return d + ' ' + (monthNames[m - 1] || '') + ' ' + y + ', ' + timePart;
+}
+
+function xlsxPad2(n) { return (n < 10 ? '0' : '') + n; }
+
+// Build spec.rows from site objects
+function xlsxBuildRows(sites) {
+    var rows = [];
+    for (var i = 0; i < sites.length; i++) {
+        var s = sites[i];
+        var pct = parseFloat(s.availRatePct || '100.0');
+        if (isNaN(pct)) pct = 100.0;
+        rows.push([
+            { v: i + 1, t: 'n', s: 'n' },
+            { v: s.siteName || '', s: 'l' },
+            { v: s.siteId || '-', s: 'l' },
+            { v: s.regionLabel || '-', s: 'l' },
+            { v: s.vendorLabel || '-', s: 'c' },
+            { v: s.totalAlarms || 0, t: 'n', s: 'n' },
+            { v: s.downtimeFormatted || '0m', s: 'r' },
+            { v: s.availableFormatted || '0m', s: 'g' },
+            { v: Math.round(pct * 10000) / 1000000, t: 'n', s: 'p' }
+        ]);
+    }
+    return rows;
+}
+
+// Main export handler
+function exportToExcel() {
+    var exportBtn = document.getElementById('customExportBtn');
+    var originalText = exportBtn ? exportBtn.textContent : 'Export Excel';
+
+    function fail(msg) {
+        console.error('[Export Error]:', msg);
+        if (exportBtn) {
+            exportBtn.textContent = originalText;
+            exportBtn.disabled = false;
+        }
+        if (typeof alert === 'function') alert('Export failed: ' + msg);
+    }
+
+    if (typeof MessageProcessor === 'undefined' || !MessageProcessor.process) {
+        fail('MessageProcessor not available');
+        return;
+    }
+
+    if (exportBtn) {
+        exportBtn.textContent = 'Exporting...';
+        exportBtn.disabled = true;
+    }
+
+    var now = new Date();
+    var generated = 'Generated: ' + now.getFullYear() + '-' + xlsxPad2(now.getMonth() + 1) + '-' + xlsxPad2(now.getDate()) +
+        ' ' + xlsxPad2(now.getHours()) + ':' + xlsxPad2(now.getMinutes());
+
+    var filterParts = [];
+    if (DashboardState.selectedRegion) filterParts.push(DashboardState.selectedRegion);
+    if (DashboardState.selectedVendor) filterParts.push(DashboardState.selectedVendor);
+    if (DashboardState.searchQuery) filterParts.push('"' + DashboardState.searchQuery + '"');
+    var filterLabel = filterParts.length ? 'Filter : ' + filterParts.join(', ') : 'Filter : All';
+
+    var timeRange;
+    if (DashboardState.isLast24hMode) {
+        var q24 = getLast24HoursDates();
+        timeRange = 'Time range: ' + xlsxFormatTs(q24.startDate) + ' \u2013 ' + xlsxFormatTs(q24.endDate);
+    } else if (DashboardState.isTodayMode) {
+        timeRange = 'Time range: Today (00:00 \u2013 Now)';
+    } else if (DashboardState.isAllTimeMode) {
+        timeRange = 'Time range: All Time';
+    } else {
+        timeRange = 'Time range: ' + xlsxFormatTs(DashboardState.startDate) + ' \u2013 ' + xlsxFormatTs(DashboardState.endDate);
+    }
+
+    MessageProcessor.process({
+        serviceId: SERVICE_ENDPOINT_LIST,
+        data: {
+            startDate: DashboardState.startDate,
+            endDate: DashboardState.endDate,
+            region: DashboardState.selectedRegion || '',
+            vendor: DashboardState.selectedVendor || '',
+            searchQuery: DashboardState.searchQuery || '',
+            page: 1,
+            pageSize: 10000
+        },
+        success: function (res) {
+            try {
+                var resultData = (res && res.result) || (res && res.data) || res;
+                var sites = (resultData && resultData.sites) || DashboardState.allSites || [];
+
+                var spec = {
+                    title: 'Alarm Downtime by Site \u2014 Export',
+                    generated: generated,
+                    filter: filterLabel,
+                    timeRange: timeRange,
+                    footer: 'Total: ' + (resultData && resultData.pagination ? resultData.pagination.totalSites : sites.length) +
+                        ' sites \u2022 ' + (DashboardState.summary ? DashboardState.summary.totalAlarmsDown : 0) + ' alarms down',
+                    headers: ['No', 'Site name', 'Site ID', 'Region', 'Vendor', 'Alarm count', 'Downtime', 'Available', 'Availability %'],
+                    rows: xlsxBuildRows(sites)
+                };
+
+                var bytes = xlsxBuildWorkbook(spec);
+                var filename = 'Alarm_Downtime_by_Site_' + now.getFullYear() + '-' + xlsxPad2(now.getMonth() + 1) + '-' + xlsxPad2(now.getDate()) + '.xlsx';
+                var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    URL.revokeObjectURL(url);
+                    a.remove();
+                }, 1500);
+
+                if (exportBtn) {
+                    exportBtn.textContent = originalText;
+                    exportBtn.disabled = false;
+                }
+            } catch (e) {
+                fail(e.message || e);
+            }
+        },
+        error: function (err) {
+            fail(err && err.message ? err.message : 'service error');
+        }
+    });
 }
 
 // ROBUST LIFECYCLE INITIALIZER FOR OWS RUN & PREVIEWER MODE
